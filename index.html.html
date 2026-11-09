@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0810">
+  <title>Shop Roses · Colección Exclusiva</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- LOADER -->
+  <div id="loader" class="loader">
+    <div class="loader-rose">🌹</div>
+    <div class="loader-logo">SHOP ROSES</div>
+    <div class="loader-bar"><div class="loader-progress"></div></div>
+    <p class="loader-text">Preparando tu colección...</p>
+  </div>
+
+  <!-- AMBIENT BACKGROUND -->
+  <div class="ambient">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header" id="header">
+    <div class="header-brand">
+      <span class="brand-mark">🌹</span>
+      <div class="brand-text">
+        <span class="brand-name">SHOP ROSES</span>
+        <span class="brand-tag">ATELIER · TIENDA FÍSICA</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="helpBtn" class="icon-btn" title="Ayuda del vendedor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+      <button id="cartBtn" class="icon-btn cart-btn" title="Mi selección">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span class="badge" id="cartCount">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-eyebrow"><span class="line"></span> Colección 2026 · Exclusiva en tienda</p>
+      <h1 class="hero-title">Viste lo <em>extraordinario</em></h1>
+      <p class="hero-sub">Combina prendas, desbloquea descuentos especiales y define tu estilo.<br>Ahorra hasta <strong>20%</strong> en combos seleccionados hoy.</p>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num" id="statProducts">0</span><span class="stat-label">Prendas</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">-50%</span><span class="stat-label">Ofertas Flash</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">100%</span><span class="stat-label">Originales</span></div>
+      </div>
+    </div>
+    <div class="flash-banner" id="flashBanner">
+      <span class="flash-icon">⚡</span>
+      <span class="flash-text">OFERTA FLASH · 20% OFF en combos Camiseta + Jean · Solo hoy en tienda</span>
+    </div>
+  </section>
+
+  <!-- FILTROS -->
+  <section class="filters">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Buscar prenda, categoría..." autocomplete="off">
+    </div>
+    <div class="categories" id="categories"></div>
+  </section>
+
+  <!-- CATALOGO -->
+  <main class="catalog" id="catalog"></main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>🌹 SHOP ROSES · Piezas exclusivas · Atención personalizada en tienda física</p>
+    <p class="footer-sub">Los pedidos son empacados por nuestro equipo en tienda · No realizamos domicilios</p>
+  </footer>
+
+  <!-- CART DRAWER -->
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <aside class="drawer" id="cartDrawer">
+    <div class="drawer-header">
+      <div>
+        <h2>Tu selección</h2>
+        <p class="drawer-sub" id="drawerSub">0 prendas</p>
+      </div>
+      <button class="close-btn" id="closeDrawer">✕</button>
+    </div>
+    <div class="drawer-body" id="cartItems"></div>
+    <div class="drawer-footer">
+      <div class="combo-hint" id="comboHint"></div>
+      <div class="totals">
+        <div class="total-row"><span>Subtotal</span><span id="cartSubtotal">$0</span></div>
+        <div class="total-row discount" id="cartDiscountRow" style="display:none">
+          <span>🎁 Descuento combo</span><span id="cartDiscount">-$0</span>
+        </div>
+        <div class="total-row grand"><span>Total</span><span id="cartTotal">$0</span></div>
+      </div>
+      <button class="btn-primary" id="checkoutBtn">
+        <span>Confirmar pedido</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+      <p class="drawer-note">🌹 Tu pedido se envía al vendedor para empacar en tienda. Pago y entrega en mostrador.</p>
+    </div>
+  </aside>
+
+  <!-- MODAL PRODUCTO -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="productModal">
+      <button class="modal-close" id="closeModal">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- MODAL ÉXITO -->
+  <div class="modal-overlay" id="successOverlay">
+    <div class="success-modal">
+      <div class="success-icon">✓</div>
+      <h2>¡Pedido confirmado!</h2>
+      <p class="success-order" id="successOrder">Pedido #</p>
+      <p class="success-msg">Nuestro equipo está preparando tu compra.<br>Acércate al mostrador para pagar y recibir tus prendas.</p>
+      <button class="btn-primary" id="successClose">
+        <span>Volver al catálogo</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
