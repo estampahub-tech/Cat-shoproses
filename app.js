@@ -3,7 +3,7 @@
 // ==========================================================
 // ⚠️ IMPORTANTE: Reemplaza esta URL con la de tu Apps Script
 // publicada en el paso de configuración (Implementar > Aplicación web)
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyMZXHusnZeH5EwZo0RkbbjSm-ngJJTuoV8gncEUzzM1G-I3yxD6R6L3HvegCfz_V3w/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzyyihX_2UesyZHHl905vUk0Q3rI_JHVUyejsnIxf9kQmvQ_3BtmxJ4nhUjaD-PzNxh8Q/exec';
 
 // Datos de demostración (se reemplazan automáticamente si la API responde)
 const DEMO_PRODUCTS = [
