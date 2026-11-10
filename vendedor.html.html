@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0810">
+  <title>Shop Roses · Panel Vendedor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="vendedor.css">
+</head>
+<body>
+
+  <!-- AMBIENT -->
+  <div class="ambient">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="seller-header">
+    <div class="seller-brand">
+      <span class="brand-mark">🌹</span>
+      <div class="brand-text">
+        <span class="brand-name">SHOP ROSES</span>
+        <span class="brand-tag">PANEL VENDEDOR</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-refresh" id="btnRefresh" title="Actualizar pedidos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- STATUS BAR -->
+  <section class="status-bar">
+    <div class="status-card pendientes">
+      <span class="status-label">Pendientes</span>
+      <span class="status-num" id="countPendientes">0</span>
+    </div>
+    <div class="status-card success">
+      <span class="status-label">Empacados hoy</span>
+      <span class="status-num" id="countEmpacados">0</span>
+    </div>
+    <div class="status-card money">
+      <span class="status-label">Ventas hoy</span>
+      <span class="status-num" id="countVentas">$0</span>
+    </div>
+    <div class="status-live" id="liveIndicator">
+      <span class="live-dot"></span>
+      <span id="liveText">En vivo</span>
+    </div>
+  </section>
+
+  <!-- BUSCADOR -->
+  <section class="search-section">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchPedido" placeholder="Buscar por ID o producto...">
+    </div>
+  </section>
+
+  <!-- LISTA DE PEDIDOS -->
+  <main class="pedidos-grid" id="pedidosList"></main>
+
+  <!-- ESTADO VACÍO -->
+  <div class="empty-state" id="emptyState" style="display:none">
+    <div class="empty-icon">✅</div>
+    <h2>Todo al día</h2>
+    <p>No hay pedidos pendientes por empacar</p>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- CONFIRMACIÓN -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+      <div class="confirm-icon">📦</div>
+      <h3>¿Empacar este pedido?</h3>
+      <p id="confirmText">Pedido #</p>
+      <div class="confirm-actions">
+        <button class="btn-secondary" id="btnCancel">Cancelar</button>
+        <button class="btn-confirm" id="btnConfirm">Sí, empacar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendedor.js"></script>
+</body>
+</html>
