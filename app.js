@@ -61,6 +61,7 @@ const DEMO_PRODUCTS = [
 const COMBO_DISCOUNT_PCT = 0.20; // 20% si lleva camiseta + jean
 
 // ============ ESTADO GLOBAL ============
+let cuponAplicado = null;
 let productos = [];
 let productoFiltrado = [];
 let carrito = [];
@@ -364,9 +365,23 @@ function calcularCombo() {
 function calcularTotales() {
   const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
   const aplicaCombo = calcularCombo();
-  const descuento = aplicaCombo ? Math.round(subtotal * COMBO_DISCOUNT_PCT) : 0;
-  const total = subtotal - descuento;
-  return { subtotal, descuento, total, aplicaCombo };
+  
+  let descuentoCombo = aplicaCombo ? Math.round(subtotal * COMBO_DISCOUNT_PCT) : 0;
+  let descuentoCupon = 0;
+
+  // Si hay cupón, calculamos su descuento sobre lo que queda
+  if (cuponAplicado) {
+    if (cuponAplicado.Tipo === '%') {
+      descuentoCupon = Math.round((subtotal - descuentoCombo) * (cuponAplicado.Valor / 100));
+    } else {
+      descuentoCupon = cuponAplicado.Valor;
+    }
+  }
+
+  const descuentoTotal = descuentoCombo + descuentoCupon;
+  const total = Math.max(0, subtotal - descuentoTotal);
+  
+  return { subtotal, descuento: descuentoTotal, total, aplicaCombo };
 }
 
 function actualizarCarrito() {
@@ -570,3 +585,24 @@ function bindEvents() {
     }
   } catch(e) {}
 }
+
+document.getElementById('btnCoupon')?.addEventListener('click', async () => {
+  const code = document.getElementById('couponInput').value.trim().toUpperCase();
+  if(!code) return;
+
+  // Buscar cupón en el Sheet (Nueva función en Apps Script)
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=validarCupon&code=${code}`);
+    const data = await res.json();
+    
+    if(data.status === 'success') {
+      cuponAplicado = { Codigo: code, Tipo: data.tipo, Valor: data.valor };
+      mostrarToast(`Cupón ${code} aplicado`, 'success');
+      actualizarCarrito();
+    } else {
+      mostrarToast('Cupón inválido o expirado', 'error');
+    }
+  } catch(e) {
+    mostrarToast('Error validando cupón', 'error');
+  }
+});
