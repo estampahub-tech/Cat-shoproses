@@ -3,7 +3,7 @@
 // ==========================================================
 
 // ⚠️ Misma URL de tu Apps Script (la del catálogo)
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyMZXHusnZeH5EwZo0RkbbjSm-ngJJTuoV8gncEUzzM1G-I3yxD6R6L3HvegCfz_V3w/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
 // ============ ESTADO ============
 let pedidos = [];
