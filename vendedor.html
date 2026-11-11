@@ -115,22 +115,16 @@
 
   <script src="vendedor.js"></script>
   <script>
-    // Lógica de contraseña para vendedores
+    // Lógica de contraseña para vendedores (Sin memoria, pide siempre)
     function verificarAcceso() {
       const code = document.getElementById('accessCode').value.trim();
       if (code === 'v_shoproses') {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appContent').classList.remove('hidden-app');
-        sessionStorage.setItem('shoproses_seller_auth', 'true');
       } else {
         document.getElementById('loginError').style.display = 'block';
         document.getElementById('accessCode').value = '';
       }
-    }
-
-    if (sessionStorage.getItem('shoproses_seller_auth') === 'true') {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('appContent').classList.remove('hidden-app');
     }
 
     document.getElementById('accessCode').addEventListener('keypress', function(e) {
