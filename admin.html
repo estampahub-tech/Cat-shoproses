@@ -75,24 +75,17 @@
   </div>
 
   <script>
-    // --- LOGIN ADMIN ---
+    // --- LOGIN ADMIN (Sin memoria, pide siempre) ---
     function verificarAcceso() {
       const code = document.getElementById('accessCode').value.trim();
       if (code === '72294974') {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appContent').classList.remove('hidden-app');
-        sessionStorage.setItem('shoproses_admin_auth', 'true');
         cargarTodo(); // Cargar datos al entrar
       } else {
         document.getElementById('loginError').style.display = 'block';
         document.getElementById('accessCode').value = '';
       }
-    }
-
-    if (sessionStorage.getItem('shoproses_admin_auth') === 'true') {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('appContent').classList.remove('hidden-app');
-      cargarTodo();
     }
 
     document.getElementById('accessCode').addEventListener('keypress', function(e) {
