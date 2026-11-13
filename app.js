@@ -2,17 +2,16 @@
 // SHOP ROSES · Catálogo interactivo para tablet en tienda
 // ==========================================================
 
-// ⚠️ NUEVA URL DEL APPS SCRIPT
+// ⚠️ TU URL DEL APPS SCRIPT
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
-// Datos de demostración
 const DEMO_PRODUCTS = [
-  { ID: 'CAM001', Nombre: 'Camiseta Noir Silk', Categoria: 'Camisetas', Precio_Actual: 250, Precio_Antes: 500, Costo: 120, Stock: 8, ImagenURL: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600', ComplementoID: 'JEAN001' },
-  { ID: 'JEAN001', Nombre: 'Jean Slim Roses', Categoria: 'Jeans', Precio_Actual: 420, Precio_Antes: 620, Costo: 220, Stock: 5, ImagenURL: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600', ComplementoID: 'CAM001' },
-  { ID: 'VES001', Nombre: 'Vestido Elegance', Categoria: 'Vestidos', Precio_Actual: 550, Precio_Antes: 900, Costo: 280, Stock: 4, ImagenURL: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600', ComplementoID: '' }
+  { ID: 'CAM001', Nombre: 'Camiseta Noir Silk', Categoria: 'Camisetas', Precio_Actual: 250, Precio_Antes: 500, Stock: 8, ImagenURL: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600', ComplementoID: 'JEAN001, ACC001' },
+  { ID: 'JEAN001', Nombre: 'Jean Slim Roses', Categoria: 'Jeans', Precio_Actual: 420, Precio_Antes: 620, Stock: 5, ImagenURL: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600', ComplementoID: 'CAM001' },
+  { ID: 'ACC001', Nombre: 'Cinturón Gold', Categoria: 'Accesorios', Precio_Actual: 150, Precio_Antes: 250, Stock: 15, ImagenURL: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=600', ComplementoID: '' }
 ];
 
-const COMBO_DISCOUNT_PCT = 0.20; // 20% si lleva camiseta + jean
+const COMBO_DISCOUNT_PCT = 0.20;
 
 // ============ ESTADO GLOBAL ============
 let productos = [];
@@ -131,7 +130,6 @@ function renderCatalogo() {
     const stockClass = soldOut ? 'soldout' : (p.Stock <= 3 ? 'low' : '');
     const stockLabel = soldOut ? '<span class="dot"></span> Agotado' : `<span class="dot"></span> ${p.Stock <= 3 ? `¡Solo ${p.Stock}!` : `${p.Stock} disponibles`}`;
 
-    // Validar si ya está en el carrito
     const enCarrito = carrito.find(c => String(c.id) === String(p.ID));
     const btnText = enCarrito ? `En carrito (${enCarrito.cantidad})` : (soldOut ? 'Agotado' : 'Ver y agregar');
 
@@ -171,16 +169,54 @@ function renderCatalogo() {
   });
 }
 
-// ============ MODAL PRODUCTO ============
+// ============ MODAL PRODUCTO (MÚLTIPLES COMPLEMENTOS) ============
 function abrirModal(id) {
   const p = productos.find(x => String(x.ID) === String(id));
   if (!p) return;
-  const complemento = productos.find(x => String(x.ID) === String(p.ComplementoID));
+  
   const tieneDesc = p.Precio_Antes > p.Precio_Actual;
   const soldOut = p.Stock <= 0;
   
   const enCarritoPrincipal = carrito.find(c => String(c.id) === String(p.ID));
   const btnMainText = enCarritoPrincipal ? `En carrito (${enCarritoPrincipal.cantidad}) — Sumar otra` : (soldOut ? 'Agotado' : 'Agregar a mi selección');
+
+  // NUEVA LÓGICA: Separar los complementos por coma
+  let complementosHTML = '';
+  if (p.ComplementoID) {
+    // Convertimos "JEAN001, ACC001" en un array ["JEAN001", "ACC001"]
+    const idsComplementos = String(p.ComplementoID).split(',').map(s => s.trim());
+    
+    let itemsCrossSell = '';
+    
+    idsComplementos.forEach(compId => {
+      const complemento = productos.find(x => String(x.ID) === String(compId));
+      if (complemento && complemento.Stock > 0) {
+        const enCarritoComp = carrito.find(c => String(c.id) === String(complemento.ID));
+        const compBtnText = enCarritoComp ? '✓' : '+';
+        
+        itemsCrossSell += `
+          <div class="cross-sell-item" style="margin-bottom: 10px;">
+            <img src="${complemento.ImagenURL}" alt="${complemento.Nombre}" onerror="this.src='https://via.placeholder.com/100/17141f/e68caf?text=+'"">
+            <div class="cross-sell-info">
+              <h4>${complemento.Nombre}</h4>
+              <p>+ $${complemento.Precio_Actual}</p>
+            </div>
+            <button class="cross-sell-add" data-modal-add="${complemento.ID}" title="Agregar complemento">${compBtnText}</button>
+          </div>
+        `;
+      }
+    });
+
+    if (itemsCrossSell) {
+      complementosHTML = `
+        <div class="cross-sell-box">
+          <p class="cross-sell-title">🌹 Combínalo y ahorra 20%</p>
+          ${itemsCrossSell}
+          <p style="font-size:0.75rem;color:var(--text-mid);margin-top:12px">Al llevar prendas seleccionadas, aplicamos automáticamente el descuento en tu total.</p>
+        </div>
+      `;
+    }
+  }
 
   $('#modalContent').innerHTML = `
     <div class="modal-grid">
@@ -201,23 +237,7 @@ function abrirModal(id) {
           ${btnMainText}
         </button>
 
-        ${complemento && complemento.Stock > 0 ? (() => {
-          const enCarritoComp = carrito.find(c => String(c.id) === String(complemento.ID));
-          const compBtnText = enCarritoComp ? `En carrito (${enCarritoComp.cantidad})` : 'Agregar +';
-          return `
-          <div class="cross-sell-box">
-            <p class="cross-sell-title">🌹 Combínalo y ahorra 20%</p>
-            <div class="cross-sell-item">
-              <img src="${complemento.ImagenURL}" alt="${complemento.Nombre}" onerror="this.src='https://via.placeholder.com/100/17141f/e68caf?text=+'"">
-              <div class="cross-sell-info">
-                <h4>${complemento.Nombre}</h4>
-                <p>+ $${complemento.Precio_Actual}</p>
-              </div>
-              <button class="cross-sell-add" data-modal-add="${complemento.ID}" title="${compBtnText}">${enCarritoComp ? '✓' : '+'}</button>
-            </div>
-            <p style="font-size:0.75rem;color:var(--text-mid);margin-top:12px">Al llevar ambos, aplicamos automáticamente el 20% en tu total.</p>
-          </div>
-        `})() : ''}
+        ${complementosHTML}
       </div>
     </div>
   `;
@@ -225,8 +245,7 @@ function abrirModal(id) {
   $('#modalContent').querySelectorAll('[data-modal-add]').forEach(btn => {
     btn.addEventListener('click', () => {
       agregarAlCarrito(btn.dataset.modalAdd);
-      // Refrescar el modal para actualizar los textos de los botones
-      abrirModal(id); 
+      abrirModal(id); // Refrescar el modal para actualizar los botones
     });
   });
 
@@ -262,7 +281,6 @@ function agregarAlCarrito(id) {
   }
   
   actualizarCarrito();
-  // Si el carrito está abierto, actualizarlo
   if (cartDrawer.classList.contains('open')) renderCarritoItems();
 }
 
@@ -309,7 +327,7 @@ function calcularTotales() {
     if (cuponAplicado.Tipo === '%') {
       descuentoCupon = Math.round(baseParaCupon * (cuponAplicado.Valor / 100));
     } else {
-      descuentoCupon = Math.min(baseParaCupon, cuponAplicado.Valor); // El cupón no puede ser mayor a lo que queda
+      descuentoCupon = Math.min(baseParaCupon, cuponAplicado.Valor);
     }
   }
 
