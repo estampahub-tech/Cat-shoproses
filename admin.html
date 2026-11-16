@@ -71,6 +71,7 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
     async function cargarTodo() {
+      // 1. Cargar Stats
       try {
         const res = await fetch(API_URL + '?action=getStats&t=' + Date.now());
         const data = await res.json();
@@ -78,8 +79,9 @@
           document.getElementById('statVentas').textContent = '$' + data.stats.ventasHoy;
           document.getElementById('statPedidos').textContent = data.stats.empacados + data.stats.pendientes;
         }
-      } catch(e) {}
+      } catch(e) { console.error("Error stats:", e); }
 
+      // 2. Cargar Inventario Bajo
       try {
         const resProd = await fetch(API_URL + '?action=getProducts&t=' + Date.now());
         const dataProd = await resProd.json();
@@ -94,39 +96,49 @@
           document.getElementById('statStock').textContent = stockTotal;
           document.getElementById('tablaStock').innerHTML = bajos.join('') || '<tr><td colspan="3">Inventario saludable</td></tr>';
         }
-      } catch(e) {}
+      } catch(e) { 
+        document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3" style="color:red;">Error al cargar inventario</td></tr>';
+      }
 
+      // 3. Cargar Pendientes (AQUI ESTABA EL ERROR SILENCIOSO)
       try {
         const resPend = await fetch(API_URL + '?action=getPendientes&t=' + Date.now());
         const dataPend = await resPend.json();
         const tbody = document.getElementById('tablaPendientes');
         
-        if(dataPend.status === 'success' && dataPend.pendientes.length > 0) {
-          tbody.innerHTML = dataPend.pendientes.map(p => `
-            <tr>
-              <td><img src="${p.ImagenURL}"></td>
-              <td>${p.Nombre} (${p.Tallas})</td>
-              <td>${p.Proveedor}</td>
-              <td>$${p.Costo}</td>
-              <td>$${p.Precio_Actual}</td>
-              <td>
-                <button class="btn btn-sm btn-green" onclick="cambiarEstado(${p.fila}, 'Aprobado')">Aprobar</button>
-                <button class="btn btn-sm btn-red" onclick="cambiarEstado(${p.fila}, 'Rechazado')">Rechazar</button>
-              </td>
-            </tr>
-          `).join('');
+        if(dataPend.status === 'success') {
+          if(dataPend.pendientes && dataPend.pendientes.length > 0) {
+            tbody.innerHTML = dataPend.pendientes.map(p => `
+              <tr>
+                <td><img src="${p.ImagenURL}" onerror="this.src='https://via.placeholder.com/40'"></td>
+                <td>${p.Nombre} (${p.Tallas})</td>
+                <td>${p.Proveedor}</td>
+                <td>$${p.Costo}</td>
+                <td>$${p.Precio_Actual}</td>
+                <td>
+                  <button class="btn btn-sm btn-green" onclick="cambiarEstado(${p.fila}, 'Aprobado')">Aprobar</button>
+                  <button class="btn btn-sm btn-red" onclick="cambiarEstado(${p.fila}, 'Rechazado')">Rechazar</button>
+                </td>
+              </tr>
+            `).join('');
+          } else {
+            tbody.innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
+          }
         } else {
-          tbody.innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
+           tbody.innerHTML = '<tr><td colspan="6" style="color:#e68caf;">Error del script: ' + (dataPend.message || 'Desconocido') + '</td></tr>';
         }
-      } catch(e) {}
+      } catch(e) { 
+        console.error("Error pendientes:", e);
+        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error de conexión al cargar pendientes.</td></tr>';
+      }
     }
 
     async function cambiarEstado(fila, estado) {
       if(!confirm(`¿Marcar producto como ${estado}?`)) return;
       try {
-        await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}`);
+        await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}&t=${Date.now()}`);
         cargarTodo();
-      } catch(e) { alert('Error'); }
+      } catch(e) { alert('Error al actualizar'); }
     }
 
     async function consultarVentas() {
@@ -138,7 +150,7 @@
       tbody.innerHTML = '<tr><td colspan="6">Consultando...</td></tr>';
 
       try {
-        const res = await fetch(`${API_URL}?action=getVentasFechas&start=${inicio}&end=${fin}`);
+        const res = await fetch(`${API_URL}?action=getVentasFechas&start=${inicio}&end=${fin}&t=${Date.now()}`);
         const data = await res.json();
         
         if(data.status === 'success' && data.ventas.length > 0) {
@@ -153,7 +165,7 @@
             </tr>
           `).join('');
         } else {
-          tbody.innerHTML = '<tr><td colspan="6">No hay ventas en este rango de fechas.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6">No hay ventas en este rango.</td></tr>';
         }
       } catch(e) { tbody.innerHTML = '<tr><td colspan="6">Error al consultar.</td></tr>'; }
     }
