@@ -53,7 +53,7 @@ function abrirTirilla(fila, id, productos, total, cliente, cel, email, hora) {
   document.getElementById('ticketContent').innerHTML = `
     <div style="text-align:center;">
       <h2 style="margin:0;">🌹 SHOP ROSES</h2>
-      <p style="margin:5px 0; font-size:12px;">NIT: 123.456.789-0<br>Tienda Física</p>
+      <p style="margin:5px 0; font-size:12px;">Tienda Física</p>
       <hr style="border-top:1px dashed #000;">
     </div>
     <div style="font-size:12px; margin-bottom:10px;">
@@ -79,35 +79,39 @@ function abrirTirilla(fila, id, productos, total, cliente, cel, email, hora) {
   document.getElementById('ticketOverlay').style.display = 'flex';
 }
 
-document.getElementById('btnCobrar').addEventListener('click', async () => {
-  if (!pedidoAProcesar) return;
-  
-  const btn = document.getElementById('btnCobrar');
-  btn.textContent = 'Procesando...';
-  btn.disabled = true;
-
-  try {
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'marcarEmpacado', fila: pedidoAProcesar, cobrado: true })
-    });
-    const data = await res.json();
-    
-    if (data.status === 'success') {
-      alert('Pedido empacado y cobrado con éxito. Correo enviado al cliente.');
-      document.getElementById('ticketOverlay').style.display = 'none';
-      cargarPedidos(); // Recargar la lista
-    }
-  } catch(e) {
-    alert('Error al procesar');
-  } finally {
-    btn.textContent = '💵 Cobrar y Enviar';
-    btn.disabled = false;
-  }
-});
-
-// Iniciar
+// Escuchar el botón de cobrar asegurando que la página ya cargó
 document.addEventListener('DOMContentLoaded', () => {
+  const btnCobrar = document.getElementById('btnCobrar');
+  if (btnCobrar) {
+    btnCobrar.addEventListener('click', async () => {
+      if (!pedidoAProcesar) return;
+      
+      btnCobrar.textContent = 'Procesando...';
+      btnCobrar.disabled = true;
+
+      try {
+        const res = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // <-- FIX DE CONEXIÓN
+          body: JSON.stringify({ action: 'marcarEmpacado', fila: pedidoAProcesar, cobrado: true })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+          alert('Pedido empacado y cobrado con éxito. Correo enviado al cliente.');
+          document.getElementById('ticketOverlay').style.display = 'none';
+          cargarPedidos(); 
+        }
+      } catch(e) {
+        alert('Error de conexión al cobrar. Intenta de nuevo.');
+      } finally {
+        btnCobrar.textContent = '💵 Cobrar y Enviar';
+        btnCobrar.disabled = false;
+      }
+    });
+  }
+
+  // Iniciar
   cargarPedidos();
   setInterval(cargarPedidos, 30000);
 });
