@@ -10,7 +10,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
     
-    /* LOGIN */
     #loginScreen { position: fixed; inset: 0; z-index: 99999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
     #loginScreen h2 { font-family: 'Playfair Display', serif; color: var(--rose); font-size: 2rem; margin-bottom: 20px; }
     #loginScreen input { padding: 15px 20px; border-radius: 50px; border: 1px solid var(--rose); background: var(--surface); color: white; font-size: 1.2rem; text-align: center; width: 100%; max-width: 300px; margin-bottom: 15px; outline: none; }
@@ -18,7 +17,6 @@
     #loginError { color: var(--danger); margin-top: 10px; display: none; }
     .hidden-app { display: none !important; }
 
-    /* PANEL */
     h1 { font-family: 'Playfair Display', serif; color: var(--rose); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
     .btn { padding: 10px 20px; background: var(--rose); color: var(--bg); border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size:0.9rem; }
     .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
@@ -44,7 +42,6 @@
 </head>
 <body>
 
-  <!-- PANTALLA DE BLOQUEO -->
   <div id="loginScreen">
     <h2>🌹 Admin Shop Roses</h2>
     <input type="password" id="accessCode" placeholder="Clave de administrador">
@@ -52,7 +49,6 @@
     <p id="loginError">Clave incorrecta.</p>
   </div>
 
-  <!-- CONTENIDO DEL ADMIN -->
   <div id="appContent" class="hidden-app">
     <h1>
       🌹 Shop Roses · Admin
@@ -92,7 +88,6 @@
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
-    // --- LOGICA DE CONTRASEÑA ---
     function verificarAcceso() {
       const code = document.getElementById('accessCode').value.trim();
       if (code === '72294974') {
@@ -104,50 +99,27 @@
         document.getElementById('accessCode').value = '';
       }
     }
-    document.getElementById('accessCode').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') verificarAcceso();
-    });
+    document.getElementById('accessCode').addEventListener('keypress', function(e) { if (e.key === 'Enter') verificarAcceso(); });
 
-    // --- CARGA DE DATOS ---
     async function cargarTodo() {
-      // 1. Stats
+      document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">Cargando datos...</td></tr>';
+      document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+      
       try {
-        const res = await fetch(API_URL + '?action=getStats&t=' + Date.now());
+        const res = await fetch(API_URL + '?action=getAdminData&t=' + Date.now());
         const data = await res.json();
-        if(data.status === 'success') {
-          document.getElementById('statVentas').textContent = '$' + data.stats.ventasHoy;
-          document.getElementById('statPedidos').textContent = data.stats.empacados + data.stats.pendientes;
-        }
-      } catch(e) { console.error("Error stats:", e); }
-
-      // 2. Inventario
-      try {
-        const resProd = await fetch(API_URL + '?action=getProducts&t=' + Date.now());
-        const dataProd = await resProd.json();
-        let stockTotal = 0, bajos = [];
-        if(dataProd.status === 'success') {
-          dataProd.products.forEach(p => {
-            stockTotal += Number(p.Stock);
-            if(Number(p.Stock) <= 3) {
-              bajos.push(`<tr><td>${p.Nombre}</td><td>${p.Proveedor}</td><td><span class="tag low">${p.Stock}</span></td></tr>`);
-            }
-          });
-          document.getElementById('statStock').textContent = stockTotal;
-          document.getElementById('tablaStock').innerHTML = bajos.join('') || '<tr><td colspan="3">Inventario saludable</td></tr>';
-        }
-      } catch(e) { 
-        document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3" style="color:red;">Error al cargar inventario</td></tr>';
-      }
-
-      // 3. Pendientes
-      try {
-        const resPend = await fetch(API_URL + '?action=getPendientes&t=' + Date.now());
-        const dataPend = await resPend.json();
-        const tbody = document.getElementById('tablaPendientes');
         
-        if(dataPend.status === 'success') {
-          if(dataPend.pendientes && dataPend.pendientes.length > 0) {
-            tbody.innerHTML = dataPend.pendientes.map(p => `
+        if(data.status === 'success') {
+          // Forzamos a que sean números con Number() para evitar el NaN
+          document.getElementById('statVentas').textContent = '$' + (Number(data.stats.ventasHoy) || 0);
+          document.getElementById('statPedidos').textContent = Number(data.stats.pedidosHoy) || 0;
+          document.getElementById('statStock').textContent = Number(data.stats.stockTotal) || 0;
+          
+          let stockHtml = (data.bajoStock || []).map(p => `<tr><td>${p.nombre}</td><td>${p.proveedor}</td><td><span class="tag low">${p.stock}</span></td></tr>`).join('');
+          document.getElementById('tablaStock').innerHTML = stockHtml || '<tr><td colspan="3">Inventario saludable</td></tr>';
+
+          if(data.pendientes && data.pendientes.length > 0) {
+            document.getElementById('tablaPendientes').innerHTML = data.pendientes.map(p => `
               <tr>
                 <td><img src="${p.ImagenURL}" onerror="this.src='https://via.placeholder.com/40'"></td>
                 <td>${p.Nombre} (${p.Tallas})</td>
@@ -161,14 +133,14 @@
               </tr>
             `).join('');
           } else {
-            tbody.innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
+            document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
           }
         } else {
-           tbody.innerHTML = '<tr><td colspan="6" style="color:#e68caf;">Revisa tu hoja de cálculo: ' + (dataPend.message || dataPend.error_interno || 'Error') + '</td></tr>';
+          throw new Error(data.message);
         }
-      } catch(e) { 
-        console.error("Error pendientes:", e);
-        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error de red al cargar pendientes. Intenta de nuevo.</td></tr>';
+      } catch(e) {
+        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error de conexión. Verifica que hayas publicado la "Nueva Versión" en Apps Script.</td></tr>';
+        document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3" style="color:red;">Error al cargar inventario.</td></tr>';
       }
     }
 
@@ -194,14 +166,7 @@
         
         if(data.status === 'success' && data.ventas.length > 0) {
           tbody.innerHTML = data.ventas.map(v => `
-            <tr>
-              <td>${v.fecha}</td>
-              <td>${v.id}</td>
-              <td>${v.cliente}</td>
-              <td>${v.productos}</td>
-              <td>$${v.total}</td>
-              <td>${v.estado}</td>
-            </tr>
+            <tr><td>${v.fecha}</td><td>${v.id}</td><td>${v.cliente}</td><td>${v.productos}</td><td>$${v.total}</td><td>${v.estado}</td></tr>
           `).join('');
         } else {
           tbody.innerHTML = '<tr><td colspan="6">No hay ventas en este rango.</td></tr>';
