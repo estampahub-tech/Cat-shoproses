@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- LOADER -->
   <div id="loader" class="loader">
     <div class="loader-rose">🌹</div>
     <div class="loader-logo">SHOP ROSES</div>
@@ -103,6 +102,24 @@
     <div class="modal" id="productModal">
       <button class="modal-close" id="closeModal">✕</button>
       <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- MODAL DE DATOS DEL CLIENTE (Reemplaza los prompt) -->
+  <div class="modal-overlay" id="checkoutOverlay" style="z-index: 10000;">
+    <div class="modal" style="max-width: 400px; padding: 30px;">
+      <h2 style="font-family: 'Playfair Display', serif; color: #e68caf; margin-bottom: 10px; font-size: 1.6rem; text-align: center;">Tus Datos</h2>
+      <p style="font-size: 0.85rem; color: #b0a5b3; margin-bottom: 20px; text-align: center;">Ingresa tus datos para procesar el pedido en tienda.</p>
+      
+      <input type="text" id="cli_nombre" placeholder="Nombre completo" required style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 12px; outline: none;">
+      <input type="text" id="cli_cedula" placeholder="Cédula / Identificación" required style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 12px; outline: none;">
+      <input type="tel" id="cli_celular" placeholder="Número de celular" required style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 12px; outline: none;">
+      <input type="email" id="cli_email" placeholder="Correo electrónico (Opcional)" style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 24px; outline: none;">
+      
+      <div style="display: flex; gap: 10px;">
+        <button id="btnCancelCheckout" style="flex: 1; padding: 15px; background: transparent; border: 1px solid #444; border-radius: 8px; color: white; cursor: pointer;">Cancelar</button>
+        <button id="btnProcesarPago" style="flex: 1; padding: 15px; background: #e68caf; color: #0a0810; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Enviar Pedido</button>
+      </div>
     </div>
   </div>
 
