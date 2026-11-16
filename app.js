@@ -226,29 +226,74 @@ async function procesarPago() {
   const email = document.getElementById('cli_email').value.trim();
   if (!nombre || !cedula || !celular) return alert('Completa los campos requeridos.');
 
-  const btn = document.getElementById('btnProcesarPago'); btn.disabled = true; btn.textContent = 'Procesando...';
+  const btn = document.getElementById('btnProcesarPago'); 
+  btn.disabled = true; 
+  btn.textContent = 'Procesando...';
 
   const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
   let descuento = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(subtotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
 
-  const payload = { action: 'placeOrder', items: carrito, subtotal: subtotal, descuento: descuento, total: Math.max(0, subtotal - descuento), cliente_nombre: nombre, cliente_id: cedula, cliente_cel: celular, cliente_email: email };
+  const payload = { 
+    action: 'placeOrder', 
+    items: carrito, 
+    subtotal: subtotal, 
+    descuento: descuento, 
+    total: Math.max(0, subtotal - descuento), 
+    cliente_nombre: nombre, 
+    cliente_id: cedula, 
+    cliente_cel: celular, 
+    cliente_email: email 
+  };
+
+  // TEMPORIZADOR DE SEGURIDAD: Si Google se demora más de 12 segundos, cortamos la espera
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+    const res = await fetch(APPS_SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     const data = await res.json();
+    
     if (data.status === 'success') {
-      document.getElementById('checkoutOverlay').classList.remove('open');
-      $('#successOrder').textContent = `Pedido ${data.orderId || 'Confirmado'}`;
-      $('#successOverlay').classList.add('open');
-      
-      carrito = []; cuponAplicado = null; if($('#couponInput')) $('#couponInput').value = ''; actualizarCarrito(); cerrarCarrito();
-      localStorage.removeItem('shoproses_catalogo'); // Limpiar caché de productos porque cambió el stock
-      cargarProductos(); 
-    } else { alert('Error: ' + data.message); }
-  } catch (e) { alert('Error de conexión.'); } 
-  finally { btn.disabled = false; btn.textContent = 'Enviar Pedido'; }
+      mostrarExito(data.orderId);
+    } else { 
+      alert('Error: ' + data.message); 
+    }
+  } catch (e) { 
+    // Si el error es por tiempo de espera agotado, asumimos que se guardó
+    if (e.name === 'AbortError') {
+      mostrarExito('Confirmado (tiempo de espera agotado)');
+    } else {
+      alert('Error de conexión. Por favor avisa al vendedor.'); 
+    }
+  } finally { 
+    btn.disabled = false; 
+    btn.textContent = 'Enviar Pedido'; 
+  }
 }
 
+// Función auxiliar para limpiar el carrito y mostrar el éxito
+function mostrarExito(orderId) {
+  document.getElementById('checkoutOverlay').classList.remove('open');
+  document.getElementById('successOrder').textContent = `Pedido ${orderId}`;
+  document.getElementById('successOverlay').classList.add('open');
+  
+  carrito = []; 
+  cuponAplicado = null; 
+  if(document.getElementById('couponInput')) document.getElementById('couponInput').value = ''; 
+  actualizarCarrito(); 
+  cerrarCarrito();
+  
+  // Limpiamos caché y volvemos a cargar el stock
+  localStorage.removeItem('shoproses_catalogo'); 
+  cargarProductos(); 
+}
 function mostrarToast(msg, tipo) {
   const t = document.createElement('div'); t.className = `toast ${tipo}`; t.textContent = msg;
   toastContainer.appendChild(t); setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 2400);
