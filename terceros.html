@@ -13,20 +13,20 @@
     input:focus, select:focus { border-color: #e68caf; }
     button { width: 100%; padding: 15px; background: #e68caf; color: #0a0810; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; }
     button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     #loginScreen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; }
     .hidden { display: none !important; }
+    #msg { text-align: center; margin-top: 15px; font-weight: bold; }
   </style>
 </head>
 <body>
 
-  <!-- LOGIN DE TERCEROS -->
   <div id="loginScreen">
     <h1 style="color:#e68caf; margin-bottom:20px;">🌹 Portal de Aliados</h1>
     <input type="password" id="accessCode" placeholder="Clave de aliado" style="max-width:300px;">
     <button onclick="verificarAcceso()" style="max-width:300px;">Entrar</button>
   </div>
 
-  <!-- FORMULARIO DE CARGA -->
   <div id="formScreen" class="container hidden">
     <h1>Subir Prenda a Vitrina</h1>
     <p style="text-align:center; font-size:0.8rem; color:#b0a5b3; margin-bottom:20px;">Shop Roses la venderá y te pagaremos tu costo al final del día.</p>
@@ -42,14 +42,14 @@
         <option value="Accesorios">Accesorios</option>
       </select>
       <input type="number" id="precio_costo" placeholder="Tu precio (lo que te pagamos)" required>
-      <input type="number" id="precio_venta" placeholder="Precio al público (con ganancia de Shop Roses)" required>
+      <input type="number" id="precio_venta" placeholder="Precio al público (con ganancia)" required>
       <input type="number" id="stock" placeholder="Cantidad en stock" required>
       <input type="text" id="tallas" placeholder="Tallas (ej: S, M, L o Única)" required>
       <input type="url" id="imagen" placeholder="Enlace de la foto (URL de Google Drive o Imgur)" required>
       <input type="text" id="proveedor" placeholder="Nombre de tu local" required>
       <button type="submit" id="btnSubmit">Subir Prenda</button>
     </form>
-    <p id="msg" style="text-align:center; margin-top:15px; font-weight:bold;"></p>
+    <p id="msg"></p>
   </div>
 
   <script>
@@ -68,8 +68,11 @@
     document.getElementById('productForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btnSubmit');
+      const msg = document.getElementById('msg');
+      
       btn.textContent = 'Subiendo...';
       btn.disabled = true;
+      msg.textContent = '';
 
       const payload = {
         action: 'addProduct',
@@ -83,24 +86,36 @@
         proveedor: document.getElementById('proveedor').value
       };
 
+      // Temporizador de seguridad (10 segundos máximo)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       try {
         const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         const data = await res.json();
         
         if(data.status === 'success') {
-          document.getElementById('msg').style.color = '#2ecc71';
-          document.getElementById('msg').textContent = '¡Prenda subida con éxito!';
+          msg.style.color = '#2ecc71';
+          msg.textContent = '¡Prenda subida con éxito! Pendiente de aprobación.';
           document.getElementById('productForm').reset();
         } else {
-          throw new Error();
+          throw new Error(data.message || 'Error del servidor');
         }
       } catch(err) {
-        document.getElementById('msg').style.color = '#ff4d6d';
-        document.getElementById('msg').textContent = 'Error al subir. Intenta de nuevo.';
+        clearTimeout(timeoutId);
+        msg.style.color = '#ff4d6d';
+        if (err.name === 'AbortError') {
+          msg.textContent = 'El servidor tardó mucho en responder. Verifica tu Apps Script.';
+        } else {
+          msg.textContent = 'Error al subir. Avisa al administrador.';
+        }
       } finally {
         btn.textContent = 'Subir Prenda';
         btn.disabled = false;
