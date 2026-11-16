@@ -1,5 +1,5 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Con Tallas y Datos del Cliente)
+// SHOP ROSES · Catálogo (Con Tallas, Clientes y Fix del Loader)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
@@ -28,6 +28,11 @@ const comboHint = $('#comboHint');
 const toastContainer = $('#toastContainer');
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Ocultar el loader después de 1.5 segundos (FIX)
+  setTimeout(() => {
+    $('#loader')?.classList.add('hidden');
+  }, 1500);
+
   cargarProductos();
   bindEvents();
 });
@@ -40,7 +45,11 @@ async function cargarProductos() {
       ...p, Precio_Actual: Number(p.Precio_Actual) || 0, Precio_Antes: Number(p.Precio_Antes) || 0, Stock: Number(p.Stock) || 0
     }));
     postCarga();
-  } catch (err) { console.error(err); }
+  } catch (err) { 
+    console.error('Error cargando productos:', err); 
+    // Si falla la red, también quitamos el loader para no dejar la pantalla pegada
+    $('#loader')?.classList.add('hidden');
+  }
 }
 
 function postCarga() {
@@ -74,7 +83,11 @@ function aplicarFiltros() {
 }
 
 function renderCatalogo() {
-  if (!productoFiltrado.length) return;
+  if (!productoFiltrado.length) {
+    catalogEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-dim)"><p style="font-size:2rem;margin-bottom:12px">🔍</p><p>No hay prendas con esos filtros.</p></div>`;
+    return;
+  }
+  
   catalogEl.innerHTML = productoFiltrado.map((p, i) => {
     const tieneDesc = p.Precio_Antes > p.Precio_Actual;
     const pct = tieneDesc ? Math.round((1 - p.Precio_Actual / p.Precio_Antes) * 100) : 0;
@@ -85,7 +98,7 @@ function renderCatalogo() {
       <article class="product-card" data-id="${p.ID}" style="animation-delay:${i * 0.06}s">
         <div class="card-image">
           ${tieneDesc ? `<span class="discount-badge">-${pct}%</span>` : ''}
-          <img src="${p.ImagenURL}" alt="${p.Nombre}" loading="lazy">
+          <img src="${p.ImagenURL}" alt="${p.Nombre}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x500/17141f/e68caf?text=Shop+Roses'">
           <span class="stock-tag ${soldOut ? 'soldout' : ''}">${soldOut ? 'Agotado' : p.Stock + ' disponibles'}</span>
         </div>
         <div class="card-body">
@@ -126,7 +139,7 @@ function abrirModal(id) {
   
   $('#modalContent').innerHTML = `
     <div class="modal-grid">
-      <div class="modal-img"><img src="${p.ImagenURL}" alt="${p.Nombre}"></div>
+      <div class="modal-img"><img src="${p.ImagenURL}" alt="${p.Nombre}" onerror="this.src='https://via.placeholder.com/500x500/17141f/e68caf?text=Shop+Roses'"></div>
       <div class="modal-info">
         <p class="modal-cat">${p.Categoria}</p>
         <h2 class="modal-title">${p.Nombre}</h2>
@@ -153,7 +166,7 @@ function abrirModal(id) {
   $('#modalOverlay').classList.add('open');
 }
 
-function agregarAlCarrito(id) {
+window.agregarAlCarrito = function(id) {
   const p = productos.find(x => String(x.ID) === String(id));
   const tallaSelect = document.getElementById('selectTalla');
   const tallaElegida = tallaSelect ? tallaSelect.value : 'Única';
@@ -167,6 +180,7 @@ function agregarAlCarrito(id) {
   
   cerrarModal();
   actualizarCarrito();
+  mostrarToast(`Agregado: ${p.Nombre}`, 'success');
 }
 
 function cerrarModal() { $('#modalOverlay').classList.remove('open'); }
@@ -175,14 +189,16 @@ function actualizarCarrito() {
   const totalItems = carrito.reduce((s, i) => s + i.cantidad, 0);
   cartCount.textContent = totalItems;
   cartCount.classList.toggle('show', totalItems > 0);
+  drawerSub.textContent = `${totalItems} prenda${totalItems !== 1 ? 's' : ''}`;
   
   if (!carrito.length) {
-    cartItemsEl.innerHTML = `<div style="text-align:center; padding:20px;">Vacío</div>`;
+    cartItemsEl.innerHTML = `<div class="empty-cart"><div class="empty-cart-icon">🌹</div><p>Vacío</p></div>`;
   } else {
     cartItemsEl.innerHTML = carrito.map((i, index) => `
       <div class="cart-item">
         <div class="cart-item-info">
-          <h4>${i.nombre} (Talla: ${i.talla})</h4>
+          <h4>${i.nombre}</h4>
+          <p style="font-size:0.8rem;color:#b0a5b3">Talla: ${i.talla}</p>
           <span class="cart-item-price">$${i.precio * i.cantidad}</span>
           <div class="cart-item-qty">
             <button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">−</button>
@@ -190,6 +206,7 @@ function actualizarCarrito() {
             <button class="qty-btn" onclick="cambiarCantidad(${index}, 1)">+</button>
           </div>
         </div>
+        <button class="remove-btn" onclick="eliminarDelCarrito(${index})">✕</button>
       </div>
     `).join('');
   }
@@ -199,18 +216,33 @@ function actualizarCarrito() {
   const total = Math.max(0, subtotal - descuento);
 
   cartSubtotal.textContent = `$${subtotal}`;
-  if (descuento > 0) { cartDiscountRow.style.display = 'flex'; cartDiscount.textContent = `-$${descuento}`; } else { cartDiscountRow.style.display = 'none'; }
+  if (descuento > 0) { 
+    cartDiscountRow.style.display = 'flex'; 
+    cartDiscount.textContent = `-$${descuento}`; 
+    if(cuponAplicado) {
+      comboHint.classList.add('show');
+      comboHint.innerHTML = `✓ Cupón <strong>${cuponAplicado.Codigo}</strong> aplicado.`;
+    }
+  } else { 
+    cartDiscountRow.style.display = 'none'; 
+    comboHint.classList.remove('show');
+  }
   cartTotal.textContent = `$${total}`;
 }
 
-function cambiarCantidad(index, delta) {
+window.cambiarCantidad = function(index, delta) {
   carrito[index].cantidad += delta;
   if (carrito[index].cantidad <= 0) carrito.splice(index, 1);
   actualizarCarrito();
 }
 
+window.eliminarDelCarrito = function(index) {
+  carrito.splice(index, 1);
+  actualizarCarrito();
+}
+
 async function finalizarCompra() {
-  if (!carrito.length) return mostrarToast('Vacío', 'error');
+  if (!carrito.length) return mostrarToast('Tu selección está vacía', 'error');
 
   const nombre = prompt("Por favor, ingresa tu NOMBRE completo:");
   if (!nombre) return;
@@ -234,17 +266,64 @@ async function finalizarCompra() {
     const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
     const data = await res.json();
     if (data.status === 'success') {
-      alert(`¡Pedido confirmado!\nTu número de ticket es: ${data.orderId}\nAcércate al mostrador para pagar.`);
+      $('#successOrder').textContent = `Pedido ${data.orderId}`;
+      $('#successOverlay').classList.add('open');
+      
       carrito = [];
+      cuponAplicado = null;
+      if($('#couponInput')) $('#couponInput').value = '';
       actualizarCarrito();
       cerrarCarrito();
+    } else {
+      alert('Error al procesar pedido: ' + data.message);
     }
-  } catch (e) { alert('Error de conexión'); }
+  } catch (e) { 
+    alert('Error de conexión. Avisa al vendedor.'); 
+  }
+}
+
+function mostrarToast(msg, tipo = 'success') {
+  const t = document.createElement('div');
+  t.className = `toast ${tipo}`;
+  t.textContent = msg;
+  toastContainer.appendChild(t);
+  setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 2400);
 }
 
 function bindEvents() {
   $('#cartBtn')?.addEventListener('click', () => { $('#cartDrawer').classList.add('open'); $('#drawerOverlay').classList.add('open'); });
   $('#closeDrawer')?.addEventListener('click', () => { $('#cartDrawer').classList.remove('open'); $('#drawerOverlay').classList.remove('open'); });
+  $('#drawerOverlay')?.addEventListener('click', () => { $('#cartDrawer').classList.remove('open'); $('#drawerOverlay').classList.remove('open'); });
   $('#checkoutBtn')?.addEventListener('click', finalizarCompra);
   $('#closeModal')?.addEventListener('click', cerrarModal);
+  $('#modalOverlay')?.addEventListener('click', (e) => { if (e.target.id === 'modalOverlay') cerrarModal(); });
+  $('#successClose')?.addEventListener('click', () => $('#successOverlay').classList.remove('open'));
+
+  searchInput?.addEventListener('input', (e) => {
+    busquedaActual = e.target.value;
+    aplicarFiltros();
+  });
+
+  // BOTÓN DE CUPÓN CORREGIDO
+  $('#btnCoupon')?.addEventListener('click', async () => {
+    const input = $('#couponInput');
+    const code = input.value.trim().toUpperCase();
+    if(!code) return;
+
+    try {
+      const res = await fetch(`${APPS_SCRIPT_URL}?action=validarCupon&code=${code}&t=${Date.now()}`);
+      const data = await res.json();
+      
+      if(data.status === 'success') {
+        cuponAplicado = { Codigo: code, Tipo: data.tipo, Valor: data.valor };
+        mostrarToast(`Cupón ${code} aplicado`, 'success');
+        input.value = '';
+        actualizarCarrito();
+      } else {
+        mostrarToast('Cupón inválido o expirado', 'error');
+      }
+    } catch(e) {
+      mostrarToast('Error validando cupón', 'error');
+    }
+  });
 }
