@@ -46,21 +46,10 @@ function renderPedidos() {
 
 function abrirTirilla(fila, id, productos, subtotal, descuento, total, cliente, cel, email, hora) {
   pedidoAProcesar = fila;
-  
   const hoy = new Date().toLocaleDateString();
   
-  // Formatear items con su precio y proveedor
-  const prodsHTML = productos.split('|').map(p => {
-    let texto = p.trim();
-    // Si el nombre trae el proveedor, lo resaltamos
-    if(texto.includes('(Talla:')) {
-      return `<div style="margin-bottom:5px;">${texto}</div>`;
-    }
-    return `<div style="margin-bottom:5px;">${texto}</div>`;
-  }).join('');
-
+  const prodsHTML = productos.split('|').map(p => `<div style="margin-bottom:5px;">${p.trim()}</div>`).join('');
   let descuentoHTML = descuento > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Descuento:</span><span>-$${descuento}</span></div>` : '';
-  let subtotalHTML = `<div style="display:flex; justify-content:space-between;"><span>Subtotal:</span><span>$${subtotal}</span></div>`;
 
   document.getElementById('ticketContent').innerHTML = `
     <div style="text-align:center;">
@@ -80,24 +69,19 @@ function abrirTirilla(fila, id, productos, subtotal, descuento, total, cliente, 
       ${prodsHTML}
     </div>
     <hr style="border-top:1px dashed #000;">
-    
     <div style="font-size:13px; margin-top:10px;">
-      ${subtotalHTML}
+      <div style="display:flex; justify-content:space-between;"><span>Subtotal:</span><span>$${subtotal}</span></div>
       ${descuentoHTML}
     </div>
-
     <div style="text-align:right; font-size:16px; font-weight:bold; margin-top:10px; border-top:1px dashed #000; padding-top:5px;">
       TOTAL: $${total}
     </div>
-    <div style="text-align:center; font-size:10px; margin-top:20px;">
-      ¡Gracias por tu compra!<br>Vuelve pronto.
-    </div>
+    <div style="text-align:center; font-size:10px; margin-top:20px;">¡Gracias por tu compra!</div>
   `;
 
   document.getElementById('ticketOverlay').style.display = 'flex';
 }
 
-// (El resto de vendedor.js se queda igual, el evento del botón Cobrar)
 document.addEventListener('DOMContentLoaded', () => {
   const btnCobrar = document.getElementById('btnCobrar');
   if (btnCobrar) {
@@ -108,17 +92,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         const res = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'marcarEmpacado', fila: pedidoAProcesar, cobrado: true })
         });
         const data = await res.json();
         if (data.status === 'success') {
-          alert('Pedido empacado y cobrado con éxito. Correo enviado al cliente.');
+          alert('Pedido cobrado. Correo enviado al cliente.');
           document.getElementById('ticketOverlay').style.display = 'none';
           cargarPedidos(); 
         }
-      } catch(e) { alert('Error de conexión al cobrar.'); } 
+      } catch(e) { alert('Error de conexión.'); } 
       finally { btnCobrar.textContent = '💵 Cobrar y Enviar'; btnCobrar.disabled = false; }
     });
   }
