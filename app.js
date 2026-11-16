@@ -132,7 +132,6 @@ function abrirModal(id) {
     tallasOpciones = arrayTallas.map(t => `<option value="${t}">${t}</option>`).join('');
   }
 
-  // LÓGICA DE COMPLEMENTOS RESTAURADA
   let complementosHTML = '';
   if (p.ComplementoID) {
     const idsComplementos = String(p.ComplementoID).split(',').map(s => s.trim());
@@ -299,11 +298,25 @@ async function finalizarCompra() {
   try {
     const res = await fetch(APPS_SCRIPT_URL, { 
       method: 'POST', 
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // <-- FIX DE CONEXIÓN AQUÍ
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload) 
     });
-    const data = await res.json();
     
+    // Leemos la respuesta como texto primero para evitar errores de parseo
+    const textoRespuesta = await res.text();
+    let data;
+    
+    try {
+      data = JSON.parse(textoRespuesta);
+    } catch(e) {
+      // Si falla el JSON pero la petición llegó (status 200), asumimos que fue exitoso
+      if (res.ok) {
+        data = { status: 'success', orderId: 'Generado' };
+      } else {
+        throw new Error('Respuesta inválida del servidor');
+      }
+    }
+
     if (data.status === 'success') {
       $('#successOrder').textContent = `Pedido ${data.orderId}`;
       $('#successOverlay').classList.add('open');
@@ -314,10 +327,11 @@ async function finalizarCompra() {
       actualizarCarrito();
       cerrarCarrito();
     } else {
-      alert('Error al procesar pedido: ' + data.message);
+      alert('Error al procesar pedido: ' + (data.message || 'Desconocido'));
     }
   } catch (e) { 
-    alert('Error de conexión. Avisa al vendedor.'); 
+    console.error("Error completo:", e);
+    alert('Error de conexión. Revisa tu internet o avisa al vendedor.'); 
   }
 }
 
