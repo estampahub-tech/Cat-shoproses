@@ -1,5 +1,5 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Stock dinámico)
+// SHOP ROSES · Catálogo (Checkout en Modal)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
@@ -196,6 +196,7 @@ function actualizarCarrito() {
   const totalItems = carrito.reduce((s, i) => s + i.cantidad, 0);
   cartCount.textContent = totalItems;
   cartCount.classList.toggle('show', totalItems > 0);
+  drawerSub.textContent = `${totalItems} prenda${totalItems !== 1 ? 's' : ''}`;
   
   if (!carrito.length) {
     cartItemsEl.innerHTML = `<div style="text-align:center; padding:20px; color:#aaa;">Vacío</div>`;
@@ -234,34 +235,62 @@ window.cambiarCantidad = function(index, delta) {
 }
 window.eliminarDelCarrito = function(index) { carrito.splice(index, 1); actualizarCarrito(); }
 
-async function finalizarCompra() {
-  if (!carrito.length) return mostrarToast('Vacío', 'error');
-  const nombre = prompt("Tu NOMBRE completo:"); if (!nombre) return;
-  const cedula = prompt("Tu CÉDULA:"); if (!cedula) return;
-  const celular = prompt("Tu CELULAR:"); if (!celular) return;
-  const email = prompt("Tu CORREO (opcional):") || '';
+// ABRIR EL MODAL DE CHECKOUT EN VEZ DE PROMPTS
+function finalizarCompra() {
+  if (!carrito.length) return mostrarToast('Tu selección está vacía', 'error');
+  document.getElementById('checkoutOverlay').classList.add('open');
+}
+
+// PROCESAR EL PAGO DESDE EL MODAL
+async function procesarPago() {
+  const nombre = document.getElementById('cli_nombre').value.trim();
+  const cedula = document.getElementById('cli_cedula').value.trim();
+  const celular = document.getElementById('cli_celular').value.trim();
+  const email = document.getElementById('cli_email').value.trim();
+
+  if (!nombre || !cedula || !celular) return alert('Por favor completa los campos obligatorios (Nombre, Cédula y Celular).');
+
+  const btn = document.getElementById('btnProcesarPago');
+  btn.disabled = true;
+  btn.textContent = 'Procesando...';
 
   const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
   let descuento = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(subtotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
+  const total = Math.max(0, subtotal - descuento);
 
   const payload = {
-    action: 'placeOrder', items: carrito, subtotal: subtotal, descuento: descuento, total: Math.max(0, subtotal - descuento),
+    action: 'placeOrder', items: carrito, subtotal: subtotal, descuento: descuento, total: total,
     cliente_nombre: nombre, cliente_id: cedula, cliente_cel: celular, cliente_email: email
   };
 
   try {
     const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
-    const data = await res.json();
+    const textoRespuesta = await res.text();
+    let data;
     
+    try { data = JSON.parse(textoRespuesta); } 
+    catch(e) { if(res.ok) data = { status: 'success', orderId: 'Confirmado' }; else throw new Error('Error en el servidor'); }
+
     if (data.status === 'success') {
-      $('#successOrder').textContent = `Pedido ${data.orderId}`;
+      document.getElementById('checkoutOverlay').classList.remove('open');
+      $('#successOrder').textContent = `Pedido ${data.orderId || 'Confirmado'}`;
       $('#successOverlay').classList.add('open');
-      carrito = []; cuponAplicado = null; if($('#couponInput')) $('#couponInput').value = ''; actualizarCarrito(); cerrarCarrito();
       
-      // ¡AQUÍ ESTÁ EL TRUCO! Recargamos el catálogo para que el stock baje visualmente al instante.
+      carrito = []; cuponAplicado = null; 
+      if($('#couponInput')) $('#couponInput').value = ''; 
+      actualizarCarrito(); cerrarCarrito();
+      
+      document.getElementById('cli_nombre').value = ''; document.getElementById('cli_cedula').value = '';
+      document.getElementById('cli_celular').value = ''; document.getElementById('cli_email').value = '';
+      
       cargarProductos(); 
     } else { alert('Error: ' + data.message); }
-  } catch (e) { alert('Error de conexión.'); }
+  } catch (e) { 
+    alert('Error de conexión. Avisa al vendedor.'); 
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enviar Pedido';
+  }
 }
 
 function mostrarToast(msg, tipo) {
@@ -274,6 +303,10 @@ function bindEvents() {
   $('#closeDrawer')?.addEventListener('click', () => { $('#cartDrawer').classList.remove('open'); $('#drawerOverlay').classList.remove('open'); });
   $('#drawerOverlay')?.addEventListener('click', () => { $('#cartDrawer').classList.remove('open'); $('#drawerOverlay').classList.remove('open'); });
   $('#checkoutBtn')?.addEventListener('click', finalizarCompra);
+  
+  $('#btnCancelCheckout')?.addEventListener('click', () => { document.getElementById('checkoutOverlay').classList.remove('open'); });
+  $('#btnProcesarPago')?.addEventListener('click', procesarPago);
+
   $('#closeModal')?.addEventListener('click', cerrarModal);
   $('#modalOverlay')?.addEventListener('click', (e) => { if (e.target.id === 'modalOverlay') cerrarModal(); });
   $('#successClose')?.addEventListener('click', () => $('#successOverlay').classList.remove('open'));
