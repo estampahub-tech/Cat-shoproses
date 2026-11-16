@@ -27,6 +27,9 @@
     img { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; }
     .tag { padding: 4px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; }
     .tag.low { background: rgba(255, 77, 109, 0.2); color: var(--danger); }
+
+    .date-filter { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; background: var(--surface); padding: 15px; border-radius: 12px; }
+    .date-filter input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #0a0810; color: white; }
   </style>
 </head>
 <body>
@@ -53,11 +56,21 @@
     <tbody id="tablaStock"><tr><td colspan="3">Cargando...</td></tr></tbody>
   </table>
 
+  <h2>📊 Historial de Ventas por Fechas</h2>
+  <div class="date-filter">
+    <label>Desde: <input type="date" id="fechaInicio"></label>
+    <label>Hasta: <input type="date" id="fechaFin"></label>
+    <button class="btn" onclick="consultarVentas()">Consultar</button>
+  </div>
+  <table>
+    <thead><tr><th>Fecha</th><th>Ticket</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead>
+    <tbody id="tablaVentas"><tr><td colspan="6">Selecciona un rango de fechas.</td></tr></tbody>
+  </table>
+
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
     async function cargarTodo() {
-      // 1. Stats
       try {
         const res = await fetch(API_URL + '?action=getStats&t=' + Date.now());
         const data = await res.json();
@@ -65,9 +78,8 @@
           document.getElementById('statVentas').textContent = '$' + data.stats.ventasHoy;
           document.getElementById('statPedidos').textContent = data.stats.empacados + data.stats.pendientes;
         }
-      } catch(e) { console.log(e); }
+      } catch(e) {}
 
-      // 2. Inventario bajo (Usamos getProducts para contar)
       try {
         const resProd = await fetch(API_URL + '?action=getProducts&t=' + Date.now());
         const dataProd = await resProd.json();
@@ -82,9 +94,8 @@
           document.getElementById('statStock').textContent = stockTotal;
           document.getElementById('tablaStock').innerHTML = bajos.join('') || '<tr><td colspan="3">Inventario saludable</td></tr>';
         }
-      } catch(e) { console.log(e); }
+      } catch(e) {}
 
-      // 3. Pendientes por Aprobar (Terceros)
       try {
         const resPend = await fetch(API_URL + '?action=getPendientes&t=' + Date.now());
         const dataPend = await resPend.json();
@@ -107,16 +118,44 @@
         } else {
           tbody.innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
         }
-      } catch(e) { console.log(e); }
+      } catch(e) {}
     }
 
     async function cambiarEstado(fila, estado) {
-      if(!confirm(`¿Estás seguro de marcar este producto como ${estado}?`)) return;
+      if(!confirm(`¿Marcar producto como ${estado}?`)) return;
       try {
         await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}`);
-        alert('Estado actualizado correctamente');
         cargarTodo();
-      } catch(e) { alert('Error al actualizar'); }
+      } catch(e) { alert('Error'); }
+    }
+
+    async function consultarVentas() {
+      const inicio = document.getElementById('fechaInicio').value;
+      const fin = document.getElementById('fechaFin').value;
+      if(!inicio || !fin) return alert('Selecciona ambas fechas');
+
+      const tbody = document.getElementById('tablaVentas');
+      tbody.innerHTML = '<tr><td colspan="6">Consultando...</td></tr>';
+
+      try {
+        const res = await fetch(`${API_URL}?action=getVentasFechas&start=${inicio}&end=${fin}`);
+        const data = await res.json();
+        
+        if(data.status === 'success' && data.ventas.length > 0) {
+          tbody.innerHTML = data.ventas.map(v => `
+            <tr>
+              <td>${v.fecha}</td>
+              <td>${v.id}</td>
+              <td>${v.cliente}</td>
+              <td>${v.productos}</td>
+              <td>$${v.total}</td>
+              <td>${v.estado}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="6">No hay ventas en este rango de fechas.</td></tr>';
+        }
+      } catch(e) { tbody.innerHTML = '<tr><td colspan="6">Error al consultar.</td></tr>'; }
     }
 
     cargarTodo();
