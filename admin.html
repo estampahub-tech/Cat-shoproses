@@ -50,10 +50,7 @@
   </div>
 
   <div id="appContent" class="hidden-app">
-    <h1>
-      🌹 Shop Roses · Admin
-      <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button>
-    </h1>
+    <h1>🌹 Shop Roses · Admin <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button></h1>
 
     <div class="grid-stats">
       <div class="card"><h3>Ventas Hoy</h3><p id="statVentas">$0</p></div>
@@ -102,15 +99,13 @@
     document.getElementById('accessCode').addEventListener('keypress', function(e) { if (e.key === 'Enter') verificarAcceso(); });
 
     async function cargarTodo() {
-      document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">Cargando datos...</td></tr>';
-      document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+      document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
       
       try {
         const res = await fetch(API_URL + '?action=getAdminData&t=' + Date.now());
         const data = await res.json();
         
         if(data.status === 'success') {
-          // Forzamos a que sean números con Number() para evitar el NaN
           document.getElementById('statVentas').textContent = '$' + (Number(data.stats.ventasHoy) || 0);
           document.getElementById('statPedidos').textContent = Number(data.stats.pedidosHoy) || 0;
           document.getElementById('statStock').textContent = Number(data.stats.stockTotal) || 0;
@@ -122,55 +117,38 @@
             document.getElementById('tablaPendientes').innerHTML = data.pendientes.map(p => `
               <tr>
                 <td><img src="${p.ImagenURL}" onerror="this.src='https://via.placeholder.com/40'"></td>
-                <td>${p.Nombre} (${p.Tallas})</td>
-                <td>${p.Proveedor}</td>
-                <td>$${p.Costo}</td>
-                <td>$${p.Precio_Actual}</td>
+                <td>${p.Nombre} (${p.Tallas})</td><td>${p.Proveedor}</td><td>$${p.Costo}</td><td>$${p.Precio_Actual}</td>
                 <td>
                   <button class="btn btn-sm btn-green" onclick="cambiarEstado(${p.fila}, 'Aprobado')">Aprobar</button>
                   <button class="btn btn-sm btn-red" onclick="cambiarEstado(${p.fila}, 'Rechazado')">Rechazar</button>
                 </td>
-              </tr>
-            `).join('');
+              </tr>`).join('');
           } else {
             document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
           }
-        } else {
-          throw new Error(data.message);
-        }
+        } else { throw new Error(data.message); }
       } catch(e) {
-        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error de conexión. Verifica que hayas publicado la "Nueva Versión" en Apps Script.</td></tr>';
-        document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3" style="color:red;">Error al cargar inventario.</td></tr>';
+        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error al cargar. Recarga la página.</td></tr>';
       }
     }
 
     async function cambiarEstado(fila, estado) {
       if(!confirm(`¿Marcar producto como ${estado}?`)) return;
-      try {
-        await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}&t=${Date.now()}`);
-        cargarTodo();
-      } catch(e) { alert('Error al actualizar'); }
+      try { await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}&t=${Date.now()}`); cargarTodo(); } catch(e) { alert('Error al actualizar'); }
     }
 
     async function consultarVentas() {
       const inicio = document.getElementById('fechaInicio').value;
       const fin = document.getElementById('fechaFin').value;
       if(!inicio || !fin) return alert('Selecciona ambas fechas');
-
-      const tbody = document.getElementById('tablaVentas');
-      tbody.innerHTML = '<tr><td colspan="6">Consultando...</td></tr>';
+      const tbody = document.getElementById('tablaVentas'); tbody.innerHTML = '<tr><td colspan="6">Consultando...</td></tr>';
 
       try {
         const res = await fetch(`${API_URL}?action=getVentasFechas&start=${inicio}&end=${fin}&t=${Date.now()}`);
         const data = await res.json();
-        
         if(data.status === 'success' && data.ventas.length > 0) {
-          tbody.innerHTML = data.ventas.map(v => `
-            <tr><td>${v.fecha}</td><td>${v.id}</td><td>${v.cliente}</td><td>${v.productos}</td><td>$${v.total}</td><td>${v.estado}</td></tr>
-          `).join('');
-        } else {
-          tbody.innerHTML = '<tr><td colspan="6">No hay ventas en este rango.</td></tr>';
-        }
+          tbody.innerHTML = data.ventas.map(v => `<tr><td>${v.fecha}</td><td>${v.id}</td><td>${v.cliente}</td><td>${v.productos}</td><td>$${v.total}</td><td>${v.estado}</td></tr>`).join('');
+        } else { tbody.innerHTML = '<tr><td colspan="6">No hay ventas en este rango.</td></tr>'; }
       } catch(e) { tbody.innerHTML = '<tr><td colspan="6">Error al consultar.</td></tr>'; }
     }
   </script>
