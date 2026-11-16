@@ -4,29 +4,24 @@ let pedidos = [];
 let pedidosFiltrados = [];
 let pedidoAProcesar = null;
 
-async function cargarPedidos() {
+async function cargarDatos() {
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=getPedidos&t=${Date.now()}`);
+    // UNA SOLA LLAMADA
+    const res = await fetch(`${APPS_SCRIPT_URL}?action=getSellerData&t=${Date.now()}`);
     const data = await res.json();
+    
     if (data.status === 'success') {
+      // Actualizar estadísticas
+      document.getElementById('countPendientes').textContent = data.stats.pendientes;
+      document.getElementById('countEmpacados').textContent = data.stats.empacados;
+      document.getElementById('countVentas').textContent = '$' + data.stats.ventasHoy;
+      
+      // Actualizar lista
       pedidos = data.pedidos || [];
       pedidosFiltrados = [...pedidos];
       renderPedidos();
     }
-  } catch(e) { console.error(e); }
-}
-
-// NUEVA FUNCIÓN PARA LAS ESTADÍSTICAS
-async function cargarStats() {
-  try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?action=getStats&t=${Date.now()}`);
-    const data = await res.json();
-    if (data.status === 'success') {
-      document.getElementById('countPendientes').textContent = data.stats.pendientes;
-      document.getElementById('countEmpacados').textContent = data.stats.empacados;
-      document.getElementById('countVentas').textContent = '$' + data.stats.ventasHoy;
-    }
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error("Error al cargar datos:", e); }
 }
 
 function renderPedidos() {
@@ -61,7 +56,6 @@ function abrirTirilla(fila, id, productos, subtotal, descuento, total, cliente, 
   pedidoAProcesar = fila;
   const hoy = new Date().toLocaleDateString();
   
-  // En la tirilla del vendedor SÍ se muestra el proveedor
   const prodsHTML = productos.split('|').map(p => `<div style="margin-bottom:5px;">${p.trim()}</div>`).join('');
   let descuentoHTML = descuento > 0 ? `<div style="display:flex; justify-content:space-between;"><span>Descuento:</span><span>-$${descuento}</span></div>` : '';
 
@@ -113,19 +107,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.status === 'success') {
           alert('Pedido cobrado. Correo enviado al cliente.');
           document.getElementById('ticketOverlay').style.display = 'none';
-          cargarPedidos(); 
-          cargarStats(); // Recargar estadísticas
+          cargarDatos(); // Recarga todo de una sola vez
         }
       } catch(e) { alert('Error de conexión.'); } 
       finally { btnCobrar.textContent = '💵 Cobrar y Enviar'; btnCobrar.disabled = false; }
     });
   }
   
-  cargarPedidos();
-  cargarStats(); // Llamar al inicio
-  
-  setInterval(() => {
-    cargarPedidos();
-    cargarStats();
-  }, 30000);
+  cargarDatos();
+  setInterval(cargarDatos, 30000); // Se actualiza solo cada 30 seg
 });
