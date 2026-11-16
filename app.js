@@ -1,5 +1,5 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Con Tallas, Clientes y Fix del Loader)
+// SHOP ROSES · Catálogo (Tallas, Clientes, Complementos y Fix)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
@@ -28,7 +28,6 @@ const comboHint = $('#comboHint');
 const toastContainer = $('#toastContainer');
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Ocultar el loader después de 1.5 segundos (FIX)
   setTimeout(() => {
     $('#loader')?.classList.add('hidden');
   }, 1500);
@@ -47,7 +46,6 @@ async function cargarProductos() {
     postCarga();
   } catch (err) { 
     console.error('Error cargando productos:', err); 
-    // Si falla la red, también quitamos el loader para no dejar la pantalla pegada
     $('#loader')?.classList.add('hidden');
   }
 }
@@ -128,11 +126,45 @@ function abrirModal(id) {
   const p = productos.find(x => String(x.ID) === String(id));
   if (!p) return;
 
-  // Lógica de Tallas
   let tallasOpciones = '';
   if (p.Tallas) {
     const arrayTallas = String(p.Tallas).split(',').map(t => t.trim());
     tallasOpciones = arrayTallas.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+
+  // LÓGICA DE COMPLEMENTOS RESTAURADA
+  let complementosHTML = '';
+  if (p.ComplementoID) {
+    const idsComplementos = String(p.ComplementoID).split(',').map(s => s.trim());
+    let itemsCrossSell = '';
+    
+    idsComplementos.forEach(compId => {
+      const complemento = productos.find(x => String(x.ID) === String(compId));
+      if (complemento && complemento.Stock > 0) {
+        const enCarritoComp = carrito.find(c => String(c.id) === String(complemento.ID));
+        const compBtnText = enCarritoComp ? '✓' : '+';
+        
+        itemsCrossSell += `
+          <div class="cross-sell-item" style="margin-bottom: 10px; display:flex; align-items:center; gap:10px; background:#1f1b2b; padding:10px; border-radius:8px;">
+            <img src="${complemento.ImagenURL}" alt="${complemento.Nombre}" style="width:50px; height:50px; object-fit:cover; border-radius:5px;" onerror="this.src='https://via.placeholder.com/100/17141f/e68caf?text=+'">
+            <div class="cross-sell-info" style="flex:1;">
+              <h4 style="font-size:0.85rem; margin:0;">${complemento.Nombre}</h4>
+              <p style="font-size:0.8rem; color:#e68caf; margin:0;">+ $${complemento.Precio_Actual}</p>
+            </div>
+            <button class="cross-sell-add" onclick="abrirModal('${complemento.ID}')" style="width:30px; height:30px; border-radius:50%; background:#e68caf; border:none; font-weight:bold; cursor:pointer;">${compBtnText}</button>
+          </div>
+        `;
+      }
+    });
+
+    if (itemsCrossSell) {
+      complementosHTML = `
+        <div class="cross-sell-box" style="margin-top:20px; border-top:1px dashed #444; padding-top:15px;">
+          <p style="font-size:0.85rem; font-weight:bold; color:#e68caf; margin-bottom:10px;">🌹 Combínalo y ahorra 20%</p>
+          ${itemsCrossSell}
+        </div>
+      `;
+    }
   }
 
   const enCarritoPrincipal = carrito.find(c => String(c.id) === String(p.ID));
@@ -160,6 +192,8 @@ function abrirModal(id) {
         <button class="modal-cta" ${p.Stock <= 0 && !enCarritoPrincipal ? 'disabled' : ''} onclick="agregarAlCarrito('${p.ID}')">
           ${enCarritoPrincipal ? `En carrito (${enCarritoPrincipal.cantidad})` : 'Agregar a mi selección'}
         </button>
+
+        ${complementosHTML}
       </div>
     </div>
   `;
@@ -263,8 +297,13 @@ async function finalizarCompra() {
   };
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+    const res = await fetch(APPS_SCRIPT_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // <-- FIX DE CONEXIÓN AQUÍ
+      body: JSON.stringify(payload) 
+    });
     const data = await res.json();
+    
     if (data.status === 'success') {
       $('#successOrder').textContent = `Pedido ${data.orderId}`;
       $('#successOverlay').classList.add('open');
@@ -304,7 +343,6 @@ function bindEvents() {
     aplicarFiltros();
   });
 
-  // BOTÓN DE CUPÓN CORREGIDO
   $('#btnCoupon')?.addEventListener('click', async () => {
     const input = $('#couponInput');
     const code = input.value.trim().toUpperCase();
