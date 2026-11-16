@@ -1,5 +1,5 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Tallas, Clientes, Complementos y Fix)
+// SHOP ROSES · Catálogo (Tallas, Clientes, Complementos, Descuentos)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
@@ -41,12 +41,16 @@ async function cargarProductos() {
     const res = await fetch(`${APPS_SCRIPT_URL}?action=getProducts&t=${Date.now()}`);
     const data = await res.json();
     productos = (data.products || []).map(p => ({
-      ...p, Precio_Actual: Number(p.Precio_Actual) || 0, Precio_Antes: Number(p.Precio_Antes) || 0, Stock: Number(p.Stock) || 0
+      ...p, 
+      Precio_Actual: Number(p.Precio_Actual) || 0, 
+      Precio_Antes: Number(p.Precio_Antes) || 0, 
+      Stock: Number(p.Stock) || 0
     }));
     postCarga();
   } catch (err) { 
     console.error('Error cargando productos:', err); 
     $('#loader')?.classList.add('hidden');
+    alert("Error al conectar con la base de datos. Revisa que la URL del Apps Script sea correcta.");
   }
 }
 
@@ -285,10 +289,17 @@ async function finalizarCompra() {
   if (!celular) return;
   const email = prompt("Ingresa tu CORREO ELECTRÓNICO (opcional, para enviarte la tirilla):") || '';
 
+  // CALCULAMOS SUBTOTAL, DESCUENTO Y TOTAL FINAL
+  const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  let descuento = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(subtotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
+  const total = Math.max(0, subtotal - descuento);
+
   const payload = {
     action: 'placeOrder',
     items: carrito,
-    total: carrito.reduce((s, i) => s + i.precio * i.cantidad, 0),
+    subtotal: subtotal,
+    descuento: descuento,
+    total: total,
     cliente_nombre: nombre,
     cliente_id: cedula,
     cliente_cel: celular,
@@ -302,23 +313,21 @@ async function finalizarCompra() {
       body: JSON.stringify(payload) 
     });
     
-    // Leemos la respuesta como texto primero para evitar errores de parseo
     const textoRespuesta = await res.text();
     let data;
     
     try {
       data = JSON.parse(textoRespuesta);
     } catch(e) {
-      // Si falla el JSON pero la petición llegó (status 200), asumimos que fue exitoso
       if (res.ok) {
         data = { status: 'success', orderId: 'Generado' };
       } else {
-        throw new Error('Respuesta inválida del servidor');
+        throw new Error('Respuesta inválida');
       }
     }
 
     if (data.status === 'success') {
-      $('#successOrder').textContent = `Pedido ${data.orderId}`;
+      $('#successOrder').textContent = `Pedido ${data.orderId || 'Confirmado'}`;
       $('#successOverlay').classList.add('open');
       
       carrito = [];
