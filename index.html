@@ -2,178 +2,141 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shop Roses · Admin</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <style>
-    :root { --bg: #0a0810; --surface: #17141f; --rose: #e68caf; --gold: #f0cc55; --text: #f5f0f3; --dim: #6e6472; --success: #2ecc71; --danger: #ff4d6d; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-    
-    #loginScreen { position: fixed; inset: 0; z-index: 99999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    #loginScreen h2 { font-family: 'Playfair Display', serif; color: var(--rose); font-size: 2rem; margin-bottom: 20px; }
-    #loginScreen input { padding: 15px 20px; border-radius: 50px; border: 1px solid var(--rose); background: var(--surface); color: white; font-size: 1.2rem; text-align: center; width: 100%; max-width: 300px; margin-bottom: 15px; outline: none; }
-    #loginScreen button { padding: 15px 40px; border-radius: 50px; border: none; background: var(--rose); color: var(--bg); font-size: 1.1rem; font-weight: bold; cursor: pointer; width: 100%; max-width: 300px; }
-    #loginError { color: var(--danger); margin-top: 10px; display: none; }
-    .hidden-app { display: none !important; }
-
-    h1 { font-family: 'Playfair Display', serif; color: var(--rose); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .btn { padding: 10px 20px; background: var(--rose); color: var(--bg); border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size:0.9rem; }
-    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
-    .btn-green { background: var(--success); color: white; }
-    .btn-red { background: var(--danger); color: white; }
-    
-    .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px; }
-    .card { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid #2a2634; }
-    .card h3 { font-size: 0.8rem; color: var(--dim); text-transform: uppercase; margin-bottom: 10px; }
-    .card p { font-size: 1.8rem; font-weight: 800; color: var(--gold); }
-    
-    h2 { font-family: 'Playfair Display', serif; color: var(--text); margin-bottom: 15px; margin-top: 30px; }
-    table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #2a2634; font-size: 0.85rem; }
-    th { background: #1f1b2b; color: var(--rose); font-weight: 600; }
-    img { width: 40px; height: 40px; object-fit: cover; border-radius: 5px; }
-    .tag { padding: 4px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; }
-    .tag.low { background: rgba(255, 77, 109, 0.2); color: var(--danger); }
-
-    .date-filter { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; background: var(--surface); padding: 15px; border-radius: 12px; }
-    .date-filter input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #0a0810; color: white; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0810">
+  <title>Shop Roses · Colección Exclusiva</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-  <div id="loginScreen">
-    <h2>🌹 Admin Shop Roses</h2>
-    <input type="password" id="accessCode" placeholder="Clave de administrador">
-    <button onclick="verificarAcceso()">Entrar</button>
-    <p id="loginError">Clave incorrecta.</p>
+  <div id="loader" class="loader">
+    <div class="loader-rose">🌹</div>
+    <div class="loader-logo">SHOP ROSES</div>
+    <div class="loader-bar"><div class="loader-progress"></div></div>
+    <p class="loader-text">Preparando tu colección...</p>
   </div>
 
-  <div id="appContent" class="hidden-app">
-    <h1>
-      🌹 Shop Roses · Admin
-      <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button>
-    </h1>
-
-    <div class="grid-stats">
-      <div class="card"><h3>Ventas Hoy</h3><p id="statVentas">$0</p></div>
-      <div class="card"><h3>Pedidos Hoy</h3><p id="statPedidos">0</p></div>
-      <div class="card"><h3>Prendas en Stock</h3><p id="statStock">0</p></div>
-    </div>
-
-    <h2>📥 Nuevos Artículos de Aliados (Pendientes por Aprobar)</h2>
-    <table>
-      <thead><tr><th>Foto</th><th>Nombre</th><th>Proveedor</th><th>Costo</th><th>Precio Venta</th><th>Acción</th></tr></thead>
-      <tbody id="tablaPendientes"><tr><td colspan="6">Cargando...</td></tr></tbody>
-    </table>
-
-    <h2>⚠️ Alerta de Inventario Bajo</h2>
-    <table>
-      <thead><tr><th>Producto</th><th>Proveedor</th><th>Stock</th></tr></thead>
-      <tbody id="tablaStock"><tr><td colspan="3">Cargando...</td></tr></tbody>
-    </table>
-
-    <h2>📊 Historial de Ventas por Fechas</h2>
-    <div class="date-filter">
-      <label>Desde: <input type="date" id="fechaInicio"></label>
-      <label>Hasta: <input type="date" id="fechaFin"></label>
-      <button class="btn" onclick="consultarVentas()">Consultar</button>
-    </div>
-    <table>
-      <thead><tr><th>Fecha</th><th>Ticket</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead>
-      <tbody id="tablaVentas"><tr><td colspan="6">Selecciona un rango de fechas.</td></tr></tbody>
-    </table>
+  <div class="ambient">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-overlay"></div>
   </div>
 
-  <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
+  <header class="header" id="header">
+    <div class="header-brand">
+      <span class="brand-mark">🌹</span>
+      <div class="brand-text">
+        <span class="brand-name">SHOP ROSES</span>
+        <span class="brand-tag">ATELIER · TIENDA FÍSICA</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="helpBtn" class="icon-btn" title="Ayuda del vendedor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+      <button id="cartBtn" class="icon-btn cart-btn" title="Mi selección">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span class="badge" id="cartCount">0</span>
+      </button>
+    </div>
+  </header>
 
-    function verificarAcceso() {
-      const code = document.getElementById('accessCode').value.trim();
-      if (code === '72294974') {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('appContent').classList.remove('hidden-app');
-        cargarTodo();
-      } else {
-        document.getElementById('loginError').style.display = 'block';
-        document.getElementById('accessCode').value = '';
-      }
-    }
-    document.getElementById('accessCode').addEventListener('keypress', function(e) { if (e.key === 'Enter') verificarAcceso(); });
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-eyebrow"><span class="line"></span> Colección 2026 · Exclusiva en tienda</p>
+      <h1 class="hero-title">Viste lo <em>extraordinario</em></h1>
+      <p class="hero-sub">Combina prendas, desbloquea descuentos especiales y define tu estilo.<br>Ahorra hasta <strong>20%</strong> en combos seleccionados hoy.</p>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num" id="statProducts">0</span><span class="stat-label">Prendas</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">-50%</span><span class="stat-label">Ofertas Flash</span></div>
+        <div class="stat-divider"></div>
+        <div class="stat"><span class="stat-num">100%</span><span class="stat-label">Originales</span></div>
+      </div>
+    </div>
+  </section>
 
-    async function cargarTodo() {
-      document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">Cargando datos...</td></tr>';
-      document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3">Cargando...</td></tr>';
+  <section class="filters">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Buscar prenda, categoría..." autocomplete="off">
+    </div>
+    <div class="categories" id="categories"></div>
+  </section>
+
+  <main class="catalog" id="catalog"></main>
+
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+  <aside class="drawer" id="cartDrawer">
+    <div class="drawer-header">
+      <div>
+        <h2>Tu selección</h2>
+        <p class="drawer-sub" id="drawerSub">0 prendas</p>
+      </div>
+      <button class="close-btn" id="closeDrawer">✕</button>
+    </div>
+    <div class="drawer-body" id="cartItems"></div>
+    <div class="drawer-footer">
+      <div class="combo-hint" id="comboHint"></div>
+      <div class="coupon-box" style="margin-bottom: 15px; display: flex; gap: 8px;">
+        <input type="text" id="couponInput" placeholder="Código de cupón" style="flex:1; padding: 12px; background: #17141f; border: 1px solid rgba(230, 140, 175, 0.2); border-radius: 100px; color: #fff; outline:none;">
+        <button id="btnCoupon" style="padding: 0 20px; background: #e68caf; color: #0a0810; border: none; border-radius: 100px; font-weight: bold; cursor: pointer;">Aplicar</button>
+      </div>
+      <div class="totals">
+        <div class="total-row"><span>Subtotal</span><span id="cartSubtotal">$0</span></div>
+        <div class="total-row discount" id="cartDiscountRow" style="display:none">
+          <span>🎁 Descuento</span><span id="cartDiscount">-$0</span>
+        </div>
+        <div class="total-row grand"><span>Total</span><span id="cartTotal">$0</span></div>
+      </div>
+      <button class="btn-primary" id="checkoutBtn">
+        <span>Confirmar pedido</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="productModal">
+      <button class="modal-close" id="closeModal">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- MODAL DE DATOS DEL CLIENTE -->
+  <div class="modal-overlay" id="checkoutOverlay" style="z-index: 10000;">
+    <div class="modal" style="max-width: 400px; padding: 30px;">
+      <h2 style="font-family: 'Playfair Display', serif; color: #e68caf; margin-bottom: 10px; font-size: 1.6rem; text-align: center;">Tus Datos</h2>
+      <p style="font-size: 0.85rem; color: #b0a5b3; margin-bottom: 20px; text-align: center;">Ingresa tus datos para procesar el pedido en tienda.</p>
       
-      try {
-        // UNA SOLA LLAMADA PARA TODO
-        const res = await fetch(API_URL + '?action=getAdminData&t=' + Date.now());
-        const data = await res.json();
-        
-        if(data.status === 'success') {
-          // Stats
-          document.getElementById('statVentas').textContent = '$' + data.stats.ventasHoy;
-          document.getElementById('statPedidos').textContent = data.stats.pedidosHoy;
-          document.getElementById('statStock').textContent = data.stats.stockTotal;
-          
-          // Stock
-          let stockHtml = data.bajoStock.map(p => `<tr><td>${p.nombre}</td><td>${p.proveedor}</td><td><span class="tag low">${p.stock}</span></td></tr>`).join('');
-          document.getElementById('tablaStock').innerHTML = stockHtml || '<tr><td colspan="3">Inventario saludable</td></tr>';
+      <input type="text" id="cli_nombre" placeholder="Nombre completo" required style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 12px; outline: none;">
+      <input type="text" id="cli_cedula" placeholder="Cédula / Identificación" required style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 12px; outline: none;">
+      <input type="tel" id="cli_celular" placeholder="Número de celular" required style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 12px; outline: none;">
+      <input type="email" id="cli_email" placeholder="Correo electrónico (Opcional)" style="width: 100%; padding: 14px; background: #0a0810; border: 1px solid #444; border-radius: 8px; color: white; margin-bottom: 24px; outline: none;">
+      
+      <div style="display: flex; gap: 10px;">
+        <button id="btnCancelCheckout" style="flex: 1; padding: 15px; background: transparent; border: 1px solid #444; border-radius: 8px; color: white; cursor: pointer;">Cancelar</button>
+        <button id="btnProcesarPago" style="flex: 1; padding: 15px; background: #e68caf; color: #0a0810; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Enviar Pedido</button>
+      </div>
+    </div>
+  </div>
 
-          // Pendientes
-          if(data.pendientes && data.pendientes.length > 0) {
-            document.getElementById('tablaPendientes').innerHTML = data.pendientes.map(p => `
-              <tr>
-                <td><img src="${p.ImagenURL}" onerror="this.src='https://via.placeholder.com/40'"></td>
-                <td>${p.Nombre} (${p.Tallas})</td>
-                <td>${p.Proveedor}</td>
-                <td>$${p.Costo}</td>
-                <td>$${p.Precio_Actual}</td>
-                <td>
-                  <button class="btn btn-sm btn-green" onclick="cambiarEstado(${p.fila}, 'Aprobado')">Aprobar</button>
-                  <button class="btn btn-sm btn-red" onclick="cambiarEstado(${p.fila}, 'Rechazado')">Rechazar</button>
-                </td>
-              </tr>
-            `).join('');
-          } else {
-            document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
-          }
-        }
-      } catch(e) {
-        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error de conexión al cargar.</td></tr>';
-        document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3" style="color:red;">Error al cargar inventario.</td></tr>';
-      }
-    }
+  <div class="modal-overlay" id="successOverlay">
+    <div class="success-modal">
+      <div class="success-icon">✓</div>
+      <h2>¡Pedido confirmado!</h2>
+      <p class="success-order" id="successOrder">Pedido #</p>
+      <p class="success-msg">Nuestro equipo está preparando tu compra.<br>Acércate al mostrador para pagar y recibir tus prendas.</p>
+      <button class="btn-primary" id="successClose">
+        <span>Volver al catálogo</span>
+      </button>
+    </div>
+  </div>
 
-    async function cambiarEstado(fila, estado) {
-      if(!confirm(`¿Marcar producto como ${estado}?`)) return;
-      try {
-        await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}&t=${Date.now()}`);
-        cargarTodo();
-      } catch(e) { alert('Error al actualizar'); }
-    }
+  <div class="toast-container" id="toastContainer"></div>
 
-    async function consultarVentas() {
-      const inicio = document.getElementById('fechaInicio').value;
-      const fin = document.getElementById('fechaFin').value;
-      if(!inicio || !fin) return alert('Selecciona ambas fechas');
-
-      const tbody = document.getElementById('tablaVentas');
-      tbody.innerHTML = '<tr><td colspan="6">Consultando...</td></tr>';
-
-      try {
-        const res = await fetch(`${API_URL}?action=getVentasFechas&start=${inicio}&end=${fin}&t=${Date.now()}`);
-        const data = await res.json();
-        
-        if(data.status === 'success' && data.ventas.length > 0) {
-          tbody.innerHTML = data.ventas.map(v => `
-            <tr><td>${v.fecha}</td><td>${v.id}</td><td>${v.cliente}</td><td>${v.productos}</td><td>$${v.total}</td><td>${v.estado}</td></tr>
-          `).join('');
-        } else {
-          tbody.innerHTML = '<tr><td colspan="6">No hay ventas en este rango.</td></tr>';
-        }
-      } catch(e) { tbody.innerHTML = '<tr><td colspan="6">Error al consultar.</td></tr>'; }
-    }
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
