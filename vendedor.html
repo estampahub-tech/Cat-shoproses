@@ -10,7 +10,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="vendedor.css">
   <style>
-    /* Estilos para la pantalla de bloqueo */
     #loginScreen {
       position: fixed; inset: 0; z-index: 99999;
       background: #0a0810; display: flex; flex-direction: column;
@@ -113,9 +112,19 @@
     </div>
   </div>
 
-  <script src="vendedor.js"></script>
+  <!-- MODAL TIRILLA -->
+  <div class="modal-overlay" id="ticketOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:#fff; color:#000; padding:20px; width:100%; max-width:350px; font-family:'Courier New', monospace; border-radius:8px; position:relative;">
+      <button onclick="document.getElementById('ticketOverlay').style.display='none'" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
+      <div id="ticketContent"></div>
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button onclick="window.print()" style="flex:1; padding:10px; background:#000; color:#fff; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">🖨️ Imprimir</button>
+        <button id="btnCobrar" style="flex:1; padding:10px; background:#2ecc71; color:#fff; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">💵 Cobrar y Enviar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Lógica de contraseña para vendedores (Sin memoria, pide siempre)
     function verificarAcceso() {
       const code = document.getElementById('accessCode').value.trim();
       if (code === 'v_shoproses') {
@@ -126,23 +135,12 @@
         document.getElementById('accessCode').value = '';
       }
     }
-
     document.getElementById('accessCode').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') verificarAcceso();
     });
   </script>
 
-  <!-- MODAL TIRILLA -->
-<div class="modal-overlay" id="ticketOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center; padding:20px;">
-  <div style="background:#fff; color:#000; padding:20px; width:100%; max-width:350px; font-family:'Courier New', monospace; border-radius:8px; position:relative;">
-    <button onclick="document.getElementById('ticketOverlay').style.display='none'" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
-    <div id="ticketContent"></div>
-    <div style="display:flex; gap:10px; margin-top:20px;">
-      <button onclick="window.print()" style="flex:1; padding:10px; background:#000; color:#fff; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">🖨️ Imprimir</button>
-      <button id="btnCobrar" style="flex:1; padding:10px; background:#2ecc71; color:#fff; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">💵 Cobrar y Enviar</button>
-    </div>
-  </div>
-</div>
-
+  <!-- AQUÍ ESTÁ EL CAMBIO: EL SCRIPT SE CARGA AL FINAL -->
+  <script src="vendedor.js"></script>
 </body>
 </html>
