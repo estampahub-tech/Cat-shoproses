@@ -9,8 +9,18 @@
     :root { --bg: #0a0810; --surface: #17141f; --rose: #e68caf; --gold: #f0cc55; --text: #f5f0f3; --dim: #6e6472; --success: #2ecc71; --danger: #ff4d6d; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+    
+    /* LOGIN */
+    #loginScreen { position: fixed; inset: 0; z-index: 99999; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    #loginScreen h2 { font-family: 'Playfair Display', serif; color: var(--rose); font-size: 2rem; margin-bottom: 20px; }
+    #loginScreen input { padding: 15px 20px; border-radius: 50px; border: 1px solid var(--rose); background: var(--surface); color: white; font-size: 1.2rem; text-align: center; width: 100%; max-width: 300px; margin-bottom: 15px; outline: none; }
+    #loginScreen button { padding: 15px 40px; border-radius: 50px; border: none; background: var(--rose); color: var(--bg); font-size: 1.1rem; font-weight: bold; cursor: pointer; width: 100%; max-width: 300px; }
+    #loginError { color: var(--danger); margin-top: 10px; display: none; }
+    .hidden-app { display: none !important; }
+
+    /* PANEL */
     h1 { font-family: 'Playfair Display', serif; color: var(--rose); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-    .btn { padding: 10px 20px; background: var(--rose); color: var(--bg); border: none; border-radius: 50px; font-weight: bold; cursor: pointer; text-decoration:none; font-size:0.9rem; }
+    .btn { padding: 10px 20px; background: var(--rose); color: var(--bg); border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size:0.9rem; }
     .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
     .btn-green { background: var(--success); color: white; }
     .btn-red { background: var(--danger); color: white; }
@@ -33,45 +43,74 @@
   </style>
 </head>
 <body>
-  <h1>
-    🌹 Shop Roses · Admin
-    <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button>
-  </h1>
 
-  <div class="grid-stats">
-    <div class="card"><h3>Ventas Hoy</h3><p id="statVentas">$0</p></div>
-    <div class="card"><h3>Pedidos Hoy</h3><p id="statPedidos">0</p></div>
-    <div class="card"><h3>Prendas en Stock</h3><p id="statStock">0</p></div>
+  <!-- PANTALLA DE BLOQUEO -->
+  <div id="loginScreen">
+    <h2>🌹 Admin Shop Roses</h2>
+    <input type="password" id="accessCode" placeholder="Clave de administrador">
+    <button onclick="verificarAcceso()">Entrar</button>
+    <p id="loginError">Clave incorrecta.</p>
   </div>
 
-  <h2>📥 Nuevos Artículos de Aliados (Pendientes por Aprobar)</h2>
-  <table>
-    <thead><tr><th>Foto</th><th>Nombre</th><th>Proveedor</th><th>Costo</th><th>Precio Venta</th><th>Acción</th></tr></thead>
-    <tbody id="tablaPendientes"><tr><td colspan="6">Cargando...</td></tr></tbody>
-  </table>
+  <!-- CONTENIDO DEL ADMIN -->
+  <div id="appContent" class="hidden-app">
+    <h1>
+      🌹 Shop Roses · Admin
+      <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button>
+    </h1>
 
-  <h2>⚠️ Alerta de Inventario Bajo</h2>
-  <table>
-    <thead><tr><th>Producto</th><th>Proveedor</th><th>Stock</th></tr></thead>
-    <tbody id="tablaStock"><tr><td colspan="3">Cargando...</td></tr></tbody>
-  </table>
+    <div class="grid-stats">
+      <div class="card"><h3>Ventas Hoy</h3><p id="statVentas">$0</p></div>
+      <div class="card"><h3>Pedidos Hoy</h3><p id="statPedidos">0</p></div>
+      <div class="card"><h3>Prendas en Stock</h3><p id="statStock">0</p></div>
+    </div>
 
-  <h2>📊 Historial de Ventas por Fechas</h2>
-  <div class="date-filter">
-    <label>Desde: <input type="date" id="fechaInicio"></label>
-    <label>Hasta: <input type="date" id="fechaFin"></label>
-    <button class="btn" onclick="consultarVentas()">Consultar</button>
+    <h2>📥 Nuevos Artículos de Aliados (Pendientes por Aprobar)</h2>
+    <table>
+      <thead><tr><th>Foto</th><th>Nombre</th><th>Proveedor</th><th>Costo</th><th>Precio Venta</th><th>Acción</th></tr></thead>
+      <tbody id="tablaPendientes"><tr><td colspan="6">Cargando...</td></tr></tbody>
+    </table>
+
+    <h2>⚠️ Alerta de Inventario Bajo</h2>
+    <table>
+      <thead><tr><th>Producto</th><th>Proveedor</th><th>Stock</th></tr></thead>
+      <tbody id="tablaStock"><tr><td colspan="3">Cargando...</td></tr></tbody>
+    </table>
+
+    <h2>📊 Historial de Ventas por Fechas</h2>
+    <div class="date-filter">
+      <label>Desde: <input type="date" id="fechaInicio"></label>
+      <label>Hasta: <input type="date" id="fechaFin"></label>
+      <button class="btn" onclick="consultarVentas()">Consultar</button>
+    </div>
+    <table>
+      <thead><tr><th>Fecha</th><th>Ticket</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead>
+      <tbody id="tablaVentas"><tr><td colspan="6">Selecciona un rango de fechas.</td></tr></tbody>
+    </table>
   </div>
-  <table>
-    <thead><tr><th>Fecha</th><th>Ticket</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th></tr></thead>
-    <tbody id="tablaVentas"><tr><td colspan="6">Selecciona un rango de fechas.</td></tr></tbody>
-  </table>
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
+    // --- LOGICA DE CONTRASEÑA ---
+    function verificarAcceso() {
+      const code = document.getElementById('accessCode').value.trim();
+      if (code === '72294974') {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appContent').classList.remove('hidden-app');
+        cargarTodo();
+      } else {
+        document.getElementById('loginError').style.display = 'block';
+        document.getElementById('accessCode').value = '';
+      }
+    }
+    document.getElementById('accessCode').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') verificarAcceso();
+    });
+
+    // --- CARGA DE DATOS ---
     async function cargarTodo() {
-      // 1. Cargar Stats
+      // 1. Stats
       try {
         const res = await fetch(API_URL + '?action=getStats&t=' + Date.now());
         const data = await res.json();
@@ -81,7 +120,7 @@
         }
       } catch(e) { console.error("Error stats:", e); }
 
-      // 2. Cargar Inventario Bajo
+      // 2. Inventario
       try {
         const resProd = await fetch(API_URL + '?action=getProducts&t=' + Date.now());
         const dataProd = await resProd.json();
@@ -100,7 +139,7 @@
         document.getElementById('tablaStock').innerHTML = '<tr><td colspan="3" style="color:red;">Error al cargar inventario</td></tr>';
       }
 
-      // 3. Cargar Pendientes (AQUI ESTABA EL ERROR SILENCIOSO)
+      // 3. Pendientes
       try {
         const resPend = await fetch(API_URL + '?action=getPendientes&t=' + Date.now());
         const dataPend = await resPend.json();
@@ -125,11 +164,11 @@
             tbody.innerHTML = '<tr><td colspan="6">No hay productos pendientes por revisar.</td></tr>';
           }
         } else {
-           tbody.innerHTML = '<tr><td colspan="6" style="color:#e68caf;">Error del script: ' + (dataPend.message || 'Desconocido') + '</td></tr>';
+           tbody.innerHTML = '<tr><td colspan="6" style="color:#e68caf;">Revisa tu hoja de cálculo: ' + (dataPend.message || dataPend.error_interno || 'Error') + '</td></tr>';
         }
       } catch(e) { 
         console.error("Error pendientes:", e);
-        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error de conexión al cargar pendientes.</td></tr>';
+        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error de red al cargar pendientes. Intenta de nuevo.</td></tr>';
       }
     }
 
@@ -169,8 +208,6 @@
         }
       } catch(e) { tbody.innerHTML = '<tr><td colspan="6">Error al consultar.</td></tr>'; }
     }
-
-    cargarTodo();
   </script>
 </body>
 </html>
