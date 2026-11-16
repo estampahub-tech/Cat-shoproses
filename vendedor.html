@@ -131,5 +131,18 @@
       if (e.key === 'Enter') verificarAcceso();
     });
   </script>
+
+  <!-- MODAL TIRILLA -->
+<div class="modal-overlay" id="ticketOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:9999; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; color:#000; padding:20px; width:100%; max-width:350px; font-family:'Courier New', monospace; border-radius:8px; position:relative;">
+    <button onclick="document.getElementById('ticketOverlay').style.display='none'" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:1.2rem; cursor:pointer;">✕</button>
+    <div id="ticketContent"></div>
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button onclick="window.print()" style="flex:1; padding:10px; background:#000; color:#fff; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">🖨️ Imprimir</button>
+      <button id="btnCobrar" style="flex:1; padding:10px; background:#2ecc71; color:#fff; border:none; border-radius:5px; font-weight:bold; cursor:pointer;">💵 Cobrar y Enviar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
