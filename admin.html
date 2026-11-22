@@ -41,12 +41,15 @@
     .date-filter { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; background: var(--surface); padding: 15px; border-radius: 12px; }
     .date-filter input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #0a0810; color: white; }
     
-    /* Estilos para la Configuración */
     .config-box { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--gold); margin-bottom: 30px; }
     .config-box h3 { color: var(--gold); font-size: 1rem; margin-bottom: 15px; }
     .config-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
     .config-row label { font-size: 0.85rem; color: var(--dim); }
     .config-row input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #0a0810; color: white; width: 120px; }
+
+    .cancel-box { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--danger); margin-bottom: 30px; }
+    .cancel-box h3 { color: var(--danger); font-size: 1rem; margin-bottom: 15px; }
+    .cancel-box input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #0a0810; color: white; width: 200px; margin-right: 10px; }
   </style>
 </head>
 <body>
@@ -67,7 +70,6 @@
       </div>
     </h1>
 
-    <!-- CONFIGURACIÓN DE REGALO -->
     <div class="config-box">
       <h3>⚙️ Configuración de la Barra de Progreso (Regalo)</h3>
       <div class="config-row">
@@ -79,6 +81,13 @@
         <input type="number" id="cfgRegalo" placeholder="Ej: 10">
       </div>
       <button class="btn btn-sm" style="margin-top:10px; background:var(--gold);" onclick="guardarConfig()">Guardar Configuración</button>
+    </div>
+
+    <div class="cancel-box">
+      <h3>🛑 Cancelar un Pedido</h3>
+      <p style="font-size:0.85rem; color:var(--dim); margin-bottom:10px;">Ingresa el número de ticket (ej: SR-...) para anularlo y devolver el stock.</p>
+      <input type="text" id="cancelOrderId" placeholder="Ej: SR-241122-154500">
+      <button class="btn btn-sm btn-red" onclick="cancelarPedido()">Cancelar y Restock</button>
     </div>
 
     <div class="grid-stats">
@@ -129,26 +138,45 @@
 
     async function limpiarCache() {
       const btn = event.target; btn.textContent = 'Borrando...'; btn.disabled = true;
-      try { await fetch(API_URL + '?action=limpiarCache&t=' + Date.now()); alert('✅ Memoria borrada. Los catálogos se actualizarán.'); } 
-      catch(e) { alert('Error al borrar la memoria.'); } 
+      try { await fetch(API_URL + '?action=limpiarCache&t=' + Date.now()); alert('✅ Memoria borrada.'); } 
+      catch(e) { alert('Error'); } 
       finally { btn.textContent = '🗑️ Limpiar Caché'; btn.disabled = false; cargarTodo(); }
     }
 
     async function guardarConfig() {
       const meta = document.getElementById('cfgMeta').value;
       const regalo = document.getElementById('cfgRegalo').value;
-      if(!meta || !regalo) return alert('Por favor llena ambos campos.');
+      if(!meta || !regalo) return alert('Llena ambos campos.');
 
       const btn = event.target; btn.textContent = 'Guardando...'; btn.disabled = true;
       try {
         await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'saveConfig', meta: Number(meta), porcentaje: Number(regalo) })
         });
-        alert('✅ Configuración guardada. Los clientes verán las nuevas reglas.');
+        alert('✅ Configuración guardada.');
       } catch(e) { alert('Error al guardar.'); } 
       finally { btn.textContent = 'Guardar Configuración'; btn.disabled = false; cargarTodo(); }
+    }
+
+    async function cancelarPedido() {
+      const id = document.getElementById('cancelOrderId').value.trim();
+      if(!id) return alert('Ingresa el número de ticket (ej: SR-...)');
+      if(!confirm(`¿Estás seguro de cancelar el pedido ${id} y devolver las prendas al stock?`)) return;
+
+      const btn = event.target; btn.textContent = 'Cancelando...'; btn.disabled = true;
+      try {
+        const res = await fetch(API_URL + '?action=cancelarPedido&id=' + id + '&t=' + Date.now());
+        const data = await res.json();
+        if(data.status === 'success') {
+          alert('✅ ' + data.message);
+          document.getElementById('cancelOrderId').value = '';
+          cargarTodo(); // Recargar stock e historial
+        } else {
+          alert('❌ Error: ' + data.message);
+        }
+      } catch(e) { alert('Error de conexión.'); } 
+      finally { btn.textContent = 'Cancelar y Restock'; btn.disabled = false; }
     }
 
     async function cargarTodo() {
@@ -163,7 +191,6 @@
           document.getElementById('statPedidos').textContent = Number(data.stats.pedidosHoy) || 0;
           document.getElementById('statStock').textContent = Number(data.stats.stockTotal) || 0;
           
-          // Cargar la configuración actual en los inputs
           if(data.config) {
             document.getElementById('cfgMeta').value = data.config.meta;
             document.getElementById('cfgRegalo').value = data.config.regalo;
@@ -193,7 +220,7 @@
 
     async function cambiarEstado(fila, estado) {
       if(!confirm(`¿Marcar producto como ${estado}?`)) return;
-      try { await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}&t=${Date.now()}`); cargarTodo(); } catch(e) { alert('Error al actualizar'); }
+      try { await fetch(`${API_URL}?action=cambiarAprobacion&fila=${fila}&estado=${estado}&t=${Date.now()}`); cargarTodo(); } catch(e) { alert('Error'); }
     }
 
     async function consultarVentas() {
