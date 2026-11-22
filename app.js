@@ -1,10 +1,15 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Configuración Dinámica)
+// SHOP ROSES · Catálogo (Formato de Moneda y Carrito Mejorado)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
-// Valores por defecto (se actualizan desde el Admin)
+// ⚠️ FUNCIÓN PARA FORMATEAR PRECIOS EN PESOS COLOMBIANOS
+const formatterCOP = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0 });
+function formatMoney(amount) {
+  return '$' + formatterCOP.format(amount);
+}
+
 let META_GANANCIA_MINIMA = 100000; 
 let PORCENTAJE_REGALO = 10; 
 
@@ -34,7 +39,7 @@ const toastContainer = $('#toastContainer');
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { $('#loader')?.classList.add('hidden'); }, 1000);
   
-  const cachedProds = localStorage.getItem('shoproses_catalogo_v4'); // Cambié a v4
+  const cachedProds = localStorage.getItem('shoproses_catalogo_v5'); // v5 para forzar actualización
   if (cachedProds) {
     const parsed = JSON.parse(cachedProds);
     productos = parsed.productos;
@@ -62,7 +67,7 @@ async function cargarProductos() {
       PORCENTAJE_REGALO = Number(data.config.regalo) || 10;
     }
 
-    localStorage.setItem('shoproses_catalogo_v4', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA_MINIMA, regalo: PORCENTAJE_REGALO } }));
+    localStorage.setItem('shoproses_catalogo_v5', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA_MINIMA, regalo: PORCENTAJE_REGALO } }));
     postCarga();
   } catch (err) { 
     console.error('Error cargando:', err); 
@@ -120,8 +125,8 @@ function renderCatalogo() {
           <p class="card-cat">${p.Categoria}</p>
           <h3 class="card-title">${p.Nombre}</h3>
           <div class="card-prices">
-            ${tieneDesc ? `<span class="price-old">$${p.Precio_Antes}</span>` : ''}
-            <span class="price-new">$${p.Precio_Actual}</span>
+            ${tieneDesc ? `<span class="price-old">${formatMoney(p.Precio_Antes)}</span>` : ''}
+            <span class="price-new">${formatMoney(p.Precio_Actual)}</span>
           </div>
           <button class="card-cta" ${soldOut && !enCarrito ? 'disabled' : ''} data-add="${p.ID}">
             ${enCarrito ? `En carrito (${enCarrito.cantidad})` : (soldOut ? 'Agotado' : 'Ver y agregar')}
@@ -163,7 +168,7 @@ function abrirModal(id) {
             <img src="${complemento.ImagenURL}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;" onerror="this.src='https://via.placeholder.com/40'">
             <div style="flex:1;">
               <h4 style="font-size:0.8rem; margin:0; color:#fff;">${complemento.Nombre}</h4>
-              <p style="font-size:0.8rem; color:#e68caf; margin:0;">+ $${complemento.Precio_Actual}</p>
+              <p style="font-size:0.8rem; color:#e68caf; margin:0;">+ ${formatMoney(complemento.Precio_Actual)}</p>
             </div>
             ${tieneStock ? 
               `<button onclick="abrirModal('${complemento.ID}')" style="background:#e68caf; color:#0a0810; border:none; width:28px; height:28px; border-radius:50%; cursor:pointer; font-weight:bold; font-size:1.1rem;">${enCarritoComp ? '✓' : '+'}</button>` 
@@ -187,8 +192,8 @@ function abrirModal(id) {
         <p class="modal-cat">${p.Categoria}</p>
         <h2 class="modal-title">${p.Nombre}</h2>
         <div class="modal-prices">
-          ${p.Precio_Antes > p.Precio_Actual ? `<span class="price-old">$${p.Precio_Antes}</span>` : ''}
-          <span class="price-new">$${p.Precio_Actual}</span>
+          ${p.Precio_Antes > p.Precio_Actual ? `<span class="price-old">${formatMoney(p.Precio_Antes)}</span>` : ''}
+          <span class="price-new">${formatMoney(p.Precio_Actual)}</span>
         </div>
         ${p.Tallas ? `
           <div style="margin:15px 0;">
@@ -233,26 +238,39 @@ function actualizarCarrito() {
   cartCount.classList.toggle('show', totalItems > 0);
   drawerSub.textContent = `${totalItems} prenda${totalItems !== 1 ? 's' : ''}`;
   
+  // 1. RENDERIZAR ITEMS MÁS GRANDES
   if (!carrito.length) { 
     cartItemsEl.innerHTML = `<div style="text-align:center; padding:20px; color:#aaa;">Vacío</div>`; 
   } else {
     cartItemsEl.innerHTML = carrito.map((i, index) => {
       const tieneDesc = i.precioAntes > i.precio;
+      const descItem = (i.precioAntes - i.precio) * i.cantidad;
+      
       return `
       <div class="cart-item">
+        <img src="${i.imagen}" onerror="this.src='https://via.placeholder.com/80/17141f/e68caf?text=+'">
         <div class="cart-item-info">
-          <h4>${i.nombre}</h4><p style="font-size:0.75rem;color:#b0a5b3">Talla: ${i.talla}</p>
-          <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:5px;">
-            ${tieneDesc ? `<span style="text-decoration:line-through; color:#6e6472; font-size:0.75rem;">$${i.precioAntes * i.cantidad}</span>` : ''}
-            <span class="cart-item-price" style="color:#e68caf; font-weight:bold;">$${i.precio * i.cantidad}</span>
+          <h4>${i.nombre}</h4>
+          <p style="font-size:0.8rem;color:#b0a5b3">Talla: ${i.talla}</p>
+          
+          <div style="display:flex; align-items:baseline; gap:8px; margin-top:4px; flex-wrap:wrap;">
+            ${tieneDesc ? `<span style="text-decoration:line-through; color:#6e6472; font-size:0.85rem;">${formatMoney(i.precioAntes * i.cantidad)}</span>` : ''}
+            <span style="color:#e68caf; font-weight:bold; font-size:1.1rem;">${formatMoney(i.precio * i.cantidad)}</span>
           </div>
-          <div class="cart-item-qty"><button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">−</button><span>${i.cantidad}</span><button class="qty-btn" onclick="cambiarCantidad(${index}, 1)">+</button></div>
+          ${tieneDesc ? `<span style="color:#2ecc71; font-size:0.75rem; font-weight:bold;">Ahorras: ${formatMoney(descItem)}</span>` : ''}
+          
+          <div class="cart-item-qty">
+            <button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">−</button>
+            <span class="qty-num">${i.cantidad}</span>
+            <button class="qty-btn" onclick="cambiarCantidad(${index}, 1)">+</button>
+          </div>
         </div>
         <button class="remove-btn" onclick="eliminarDelCarrito(${index})">✕</button>
       </div>`
     }).join('');
   }
 
+  // 2. MATEMÁTICAS
   let precioOriginalTotal = 0; let precioActualTotal = 0; let costoTotal = 0;
   carrito.forEach(i => {
     precioOriginalTotal += i.precioAntes * i.cantidad;
@@ -275,7 +293,7 @@ function actualizarCarrito() {
     
     descuentoRegalo = Math.round(precioActualTotal * (PORCENTAJE_REGALO/100));
     $('#cartGiftRow').style.display = 'flex';
-    $('#cartGiftDiscount').textContent = `-$${descuentoRegalo}`;
+    $('#cartGiftDiscount').textContent = `-${formatMoney(descuentoRegalo)}`;
   } else {
     $('#giftCard').style.display = 'none';
     $('#cartGiftRow').style.display = 'none';
@@ -283,7 +301,7 @@ function actualizarCarrito() {
     if (carrito.length > 0) {
       $('#progressContainer').style.display = 'block';
       const faltante = META_GANANCIA_MINIMA - margenActual;
-      $('#progressText').innerHTML = `Te faltan <strong>$${faltante.toLocaleString()}</strong> en compras para llevarte un <strong>${PORCENTAJE_REGALO}% extra</strong> de descuento.`;
+      $('#progressText').innerHTML = `Te faltan <strong>${formatMoney(faltante)}</strong> en compras para llevarte un <strong>${PORCENTAJE_REGALO}% extra</strong> de descuento.`;
       const pct = (margenActual / META_GANANCIA_MINIMA) * 100;
       $('#progressBar').style.width = `${Math.min(100, pct)}%`;
       $('#progressBar').style.background = 'linear-gradient(90deg, #e68caf, #f0cc55)';
@@ -293,22 +311,42 @@ function actualizarCarrito() {
   const totalPagar = Math.max(0, precioActualTotal - descuentoCupon - descuentoRegalo);
   const ahorroTotal = ahorroPrendas + descuentoCupon + descuentoRegalo;
 
+  // 3. ACTUALIZAR FILAS DE TOTALES (Asegurando que el descuento base siempre se vea si existe)
   if (ahorroPrendas > 0) {
-    $('#rowOriginal').style.display = 'flex'; $('#cartOriginalTotal').textContent = `$${precioOriginalTotal}`; $('#cartItemDiscount').textContent = `-$${ahorroPrendas}`;
-  } else { $('#rowOriginal').style.display = 'none'; $('#cartItemDiscount').textContent = `$0`; }
+    $('#rowOriginal').style.display = 'flex'; 
+    $('#cartOriginalTotal').textContent = formatMoney(precioOriginalTotal); 
+    $('#cartItemDiscount').textContent = `-${formatMoney(ahorroPrendas)}`;
+    $('#cartItemDiscount').parentElement.style.display = 'flex'; // Mostrar fila de descuento base
+  } else { 
+    $('#rowOriginal').style.display = 'none'; 
+    $('#cartItemDiscount').parentElement.style.display = 'none'; // Ocultar si no hay descuento base
+  }
 
   if (descuentoCupon > 0) { 
-    $('#cartDiscountRow').style.display = 'flex'; $('#cartDiscount').textContent = `-$${descuentoCupon}`; comboHint.innerHTML = `✓ Cupón <strong>${cuponAplicado.Codigo}</strong> aplicado.`; comboHint.style.display = 'block'; 
-  } else { $('#cartDiscountRow').style.display = 'none'; comboHint.style.display = 'none'; }
+    $('#cartDiscountRow').style.display = 'flex'; 
+    $('#cartDiscount').textContent = `-${formatMoney(descuentoCupon)}`; 
+    comboHint.innerHTML = `✓ Cupón <strong>${cuponAplicado.Codigo}</strong> aplicado.`; 
+    comboHint.style.display = 'block'; 
+  } else { 
+    $('#cartDiscountRow').style.display = 'none'; 
+    comboHint.style.display = 'none'; 
+  }
 
-  $('#cartTotal').textContent = `$${totalPagar}`;
+  $('#cartTotal').textContent = formatMoney(totalPagar);
 
   if (ahorroTotal > 0 && carrito.length > 0) {
-    $('#savingsBanner').style.display = 'block'; $('#cartTotalSavings').textContent = `$${ahorroTotal}`;
-  } else { $('#savingsBanner').style.display = 'none'; }
+    $('#savingsBanner').style.display = 'block'; 
+    $('#cartTotalSavings').textContent = formatMoney(ahorroTotal);
+  } else { 
+    $('#savingsBanner').style.display = 'none'; 
+  }
 }
 
-window.cambiarCantidad = function(index, delta) { carrito[index].cantidad += delta; if (carrito[index].cantidad <= 0) carrito.splice(index, 1); actualizarCarrito(); }
+window.cambiarCantidad = function(index, delta) { 
+  carrito[index].cantidad += delta; 
+  if (carrito[index].cantidad <= 0) carrito.splice(index, 1); 
+  actualizarCarrito(); 
+}
 window.eliminarDelCarrito = function(index) { carrito.splice(index, 1); actualizarCarrito(); }
 
 function finalizarCompra() {
@@ -366,7 +404,7 @@ function mostrarExito(orderId) {
   carrito = []; cuponAplicado = null; 
   if(document.getElementById('couponInput')) document.getElementById('couponInput').value = ''; 
   actualizarCarrito(); cerrarCarrito();
-  localStorage.removeItem('shoproses_catalogo_v4'); 
+  localStorage.removeItem('shoproses_catalogo_v5'); 
   cargarProductos(); 
 }
 
