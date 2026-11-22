@@ -1,5 +1,5 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Corregido y Optimizado)
+// SHOP ROSES · Catálogo (Con Ahorro Total y Gamificación)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
@@ -30,14 +30,11 @@ const toastContainer = $('#toastContainer');
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { $('#loader')?.classList.add('hidden'); }, 1000);
   
-  // Cargar productos desde la memoria del celular de inmediato
   const cachedProds = localStorage.getItem('shoproses_catalogo_v3');
   if (cachedProds) {
     productos = JSON.parse(cachedProds);
     postCarga();
   }
-  
-  // Actualizar en segundo plano
   cargarProductos();
   bindEvents();
 });
@@ -185,7 +182,6 @@ function abrirModal(id) {
         <button class="modal-cta" ${isSoldOut && !enCarritoPrincipal ? 'disabled' : ''} onclick="agregarAlCarrito('${p.ID}')">
           ${isSoldOut && !enCarritoPrincipal ? 'Agotado' : (enCarritoPrincipal ? 'Agregar otra unidad' : 'Agregar a mi selección')}
         </button>
-        
         ${complementosHTML}
       </div>
     </div>`;
@@ -194,16 +190,7 @@ function abrirModal(id) {
 
 window.agregarAlCarrito = function(id) {
   const p = productos.find(x => String(x.ID).trim() === String(id).trim());
-  
-  if (!p) {
-    alert('Error: No se encontró el producto. Por favor recarga la página.');
-    return;
-  }
-
-  if (Number(p.Stock) <= 0) {
-    mostrarToast('Producto agotado por el momento', 'error');
-    return;
-  }
+  if (!p || Number(p.Stock) <= 0) return mostrarToast('Producto agotado', 'error');
 
   const tallaSelect = document.getElementById('selectTalla');
   const tallaElegida = tallaSelect ? tallaSelect.value : 'Única';
@@ -217,6 +204,7 @@ window.agregarAlCarrito = function(id) {
       id: p.ID, 
       nombre: p.Nombre, 
       precio: Number(p.Precio_Actual), 
+      precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual), // Guardamos el precio anterior
       talla: tallaElegida, 
       proveedor: p.Proveedor || 'Shop Roses', 
       cantidad: 1 
@@ -236,14 +224,21 @@ function actualizarCarrito() {
   cartCount.classList.toggle('show', totalItems > 0);
   drawerSub.textContent = `${totalItems} prenda${totalItems !== 1 ? 's' : ''}`;
   
+  // 1. RENDERIZAR ITEMS
   if (!carrito.length) { 
     cartItemsEl.innerHTML = `<div style="text-align:center; padding:20px; color:#aaa;">Vacío</div>`; 
   } else {
-    cartItemsEl.innerHTML = carrito.map((i, index) => `
+    cartItemsEl.innerHTML = carrito.map((i, index) => {
+      const tieneDesc = i.precioAntes > i.precio;
+      return `
       <div class="cart-item">
         <div class="cart-item-info">
-          <h4>${i.nombre}</h4><p style="font-size:0.75rem;color:#b0a5b3">Talla: ${i.talla}</p>
-          <span class="cart-item-price">$${i.precio * i.cantidad}</span>
+          <h4>${i.nombre}</h4>
+          <p style="font-size:0.75rem;color:#b0a5b3">Talla: ${i.talla}</p>
+          <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:5px;">
+            ${tieneDesc ? `<span style="text-decoration:line-through; color:#6e6472; font-size:0.75rem;">$${i.precioAntes * i.cantidad}</span>` : ''}
+            <span class="cart-item-price" style="color:#e68caf; font-weight:bold;">$${i.precio * i.cantidad}</span>
+          </div>
           <div class="cart-item-qty">
             <button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">−</button>
             <span>${i.cantidad}</span>
@@ -251,20 +246,70 @@ function actualizarCarrito() {
           </div>
         </div>
         <button class="remove-btn" onclick="eliminarDelCarrito(${index})">✕</button>
-      </div>`).join('');
+      </div>`
+    }).join('');
   }
 
-  const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-  let descuento = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(subtotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
-  const total = Math.max(0, subtotal - descuento);
+  // 2. MATEMÁTICAS DEL AHORRO
+  let precioOriginalTotal = 0;
+  let precioActualTotal = 0;
 
-  cartSubtotal.textContent = `$${subtotal}`;
-  if (descuento > 0) { 
-    cartDiscountRow.style.display = 'flex'; cartDiscount.textContent = `-$${descuento}`; comboHint.innerHTML = `✓ Cupón ${cuponAplicado.Codigo} aplicado.`; comboHint.style.display='block'; 
+  carrito.forEach(i => {
+    precioOriginalTotal += i.precioAntes * i.cantidad;
+    precioActualTotal += i.precio * i.cantidad;
+  });
+
+  const ahorroPrendas = precioOriginalTotal - precioActualTotal;
+  let descuentoCupon = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(precioActualTotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
+  
+  const totalPagar = Math.max(0, precioActualTotal - descuentoCupon);
+  const ahorroTotal = ahorroPrendas + descuentoCupon;
+
+  // 3. ACTUALIZAR TEXTOS EN PANTALLA
+  if (ahorroPrendas > 0) {
+    $('#rowOriginal').style.display = 'flex';
+    $('#cartOriginalTotal').textContent = `$${precioOriginalTotal}`;
+    $('#cartItemDiscount').textContent = `-$${ahorroPrendas}`;
+  } else {
+    $('#rowOriginal').style.display = 'none';
+    $('#cartItemDiscount').textContent = `$0`;
+  }
+
+  if (descuentoCupon > 0) { 
+    $('#cartDiscountRow').style.display = 'flex'; 
+    $('#cartDiscount').textContent = `-$${descuentoCupon}`; 
+    comboHint.innerHTML = `✓ Cupón <strong>${cuponAplicado.Codigo}</strong> aplicado.`; 
+    comboHint.style.display = 'block'; 
   } else { 
-    cartDiscountRow.style.display = 'none'; comboHint.style.display='none'; 
+    $('#cartDiscountRow').style.display = 'none'; 
+    comboHint.style.display = 'none'; 
   }
-  cartTotal.textContent = `$${total}`;
+
+  $('#cartTotal').textContent = `$${totalPagar}`;
+
+  // 4. MOSTRAR EL BANNER DE AHORRO TOTAL
+  if (ahorroTotal > 0 && carrito.length > 0) {
+    $('#savingsBanner').style.display = 'block';
+    $('#cartTotalSavings').textContent = `$${ahorroTotal}`;
+  } else {
+    $('#savingsBanner').style.display = 'none';
+  }
+
+  // 5. BARRA DE PROGRESO (META: 3 PRENDAS)
+  const progressContainer = $('#progressContainer');
+  if (carrito.length > 0 && totalItems < 3) {
+    progressContainer.style.display = 'block';
+    const faltan = 3 - totalItems;
+    $('#progressText').textContent = `¡Agrega ${faltan} prenda${faltan>1?'s':''} más para un regalo sorpresa! 🎁`;
+    const pct = (totalItems / 3) * 100;
+    $('#progressBar').style.width = `${pct}%`;
+  } else if (totalItems >= 3) {
+    progressContainer.style.display = 'block';
+    $('#progressText').textContent = `🎉 ¡Felicidades! Tienes un regalo sorpresa.`;
+    $('#progressBar').style.width = '100%';
+  } else {
+    progressContainer.style.display = 'none';
+  }
 }
 
 window.cambiarCantidad = function(index, delta) { 
@@ -288,11 +333,13 @@ async function procesarPago() {
 
   const btn = document.getElementById('btnProcesarPago'); btn.disabled = true; btn.textContent = 'Procesando...';
 
-  const subtotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
-  let descuento = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(subtotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
+  // MATEMÁTICAS FINALES PARA ENVIAR AL SERVIDOR
+  let precioActualTotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  let descuentoCupon = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(precioActualTotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
+  const totalFinal = Math.max(0, precioActualTotal - descuentoCupon);
 
   const payload = { 
-    action: 'placeOrder', items: carrito, subtotal: subtotal, descuento: descuento, total: Math.max(0, subtotal - descuento), 
+    action: 'placeOrder', items: carrito, subtotal: precioActualTotal, descuento: descuentoCupon, total: totalFinal, 
     cliente_nombre: nombre, cliente_id: cedula, cliente_cel: celular, cliente_email: email 
   };
 
