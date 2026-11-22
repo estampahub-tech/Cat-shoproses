@@ -1,14 +1,11 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Formato de Moneda y Carrito Mejorado)
+// SHOP ROSES · Catálogo (Carrito Modal y Formato COP)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
 
-// ⚠️ FUNCIÓN PARA FORMATEAR PRECIOS EN PESOS COLOMBIANOS
 const formatterCOP = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0 });
-function formatMoney(amount) {
-  return '$' + formatterCOP.format(amount);
-}
+function formatMoney(amount) { return '$' + formatterCOP.format(amount); }
 
 let META_GANANCIA_MINIMA = 100000; 
 let PORCENTAJE_REGALO = 10; 
@@ -25,13 +22,15 @@ const catalogEl = $('#catalog');
 const categoriesEl = $('#categories');
 const searchInput = $('#searchInput');
 const cartCount = $('#cartCount');
-const cartDrawer = $('#cartDrawer');
-const drawerOverlay = $('#drawerOverlay');
+const cartOverlay = $('#cartOverlay');
 const cartItemsEl = $('#cartItems');
 const drawerSub = $('#drawerSub');
-const cartSubtotal = $('#cartSubtotal');
+const cartOriginalTotal = $('#cartOriginalTotal');
+const cartItemDiscount = $('#cartItemDiscount');
 const cartDiscount = $('#cartDiscount');
 const cartDiscountRow = $('#cartDiscountRow');
+const cartGiftDiscount = $('#cartGiftDiscount');
+const cartGiftRow = $('#cartGiftRow');
 const cartTotal = $('#cartTotal');
 const comboHint = $('#comboHint');
 const toastContainer = $('#toastContainer');
@@ -39,7 +38,7 @@ const toastContainer = $('#toastContainer');
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { $('#loader')?.classList.add('hidden'); }, 1000);
   
-  const cachedProds = localStorage.getItem('shoproses_catalogo_v5'); // v5 para forzar actualización
+  const cachedProds = localStorage.getItem('shoproses_catalogo_v6'); // v6 para forzar actualización
   if (cachedProds) {
     const parsed = JSON.parse(cachedProds);
     productos = parsed.productos;
@@ -67,7 +66,7 @@ async function cargarProductos() {
       PORCENTAJE_REGALO = Number(data.config.regalo) || 10;
     }
 
-    localStorage.setItem('shoproses_catalogo_v5', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA_MINIMA, regalo: PORCENTAJE_REGALO } }));
+    localStorage.setItem('shoproses_catalogo_v6', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA_MINIMA, regalo: PORCENTAJE_REGALO } }));
     postCarga();
   } catch (err) { 
     console.error('Error cargando:', err); 
@@ -221,13 +220,23 @@ window.agregarAlCarrito = function(id) {
   if (existente) { 
     existente.cantidad++; 
   } else { 
+    // AQUÍ AGREGAMOS LA IMAGEN QUE FALTABA
     carrito.push({ 
-      id: p.ID, nombre: p.Nombre, precio: Number(p.Precio_Actual), precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual),
-      costo: Number(p.Costo) || 0, talla: tallaElegida, proveedor: p.Proveedor || 'Shop Roses', cantidad: 1 
+      id: p.ID, 
+      nombre: p.Nombre, 
+      precio: Number(p.Precio_Actual), 
+      precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual),
+      costo: Number(p.Costo) || 0, 
+      talla: tallaElegida, 
+      proveedor: p.Proveedor || 'Shop Roses', 
+      imagen: p.ImagenURL, // <--- ESTO FALTABA
+      cantidad: 1 
     }); 
   }
   
-  cerrarModal(); actualizarCarrito(); mostrarToast(`Agregado: ${p.Nombre}`, 'success');
+  cerrarModal(); 
+  actualizarCarrito(); 
+  mostrarToast(`Agregado: ${p.Nombre}`, 'success');
 }
 
 function cerrarModal() { $('#modalOverlay').classList.remove('open'); }
@@ -238,7 +247,7 @@ function actualizarCarrito() {
   cartCount.classList.toggle('show', totalItems > 0);
   drawerSub.textContent = `${totalItems} prenda${totalItems !== 1 ? 's' : ''}`;
   
-  // 1. RENDERIZAR ITEMS MÁS GRANDES
+  // RENDERIZAR ITEMS
   if (!carrito.length) { 
     cartItemsEl.innerHTML = `<div style="text-align:center; padding:20px; color:#aaa;">Vacío</div>`; 
   } else {
@@ -248,16 +257,16 @@ function actualizarCarrito() {
       
       return `
       <div class="cart-item">
-        <img src="${i.imagen}" onerror="this.src='https://via.placeholder.com/80/17141f/e68caf?text=+'">
+        <img src="${i.imagen}" onerror="this.src='https://via.placeholder.com/100/17141f/e68caf?text=+'">
         <div class="cart-item-info">
           <h4>${i.nombre}</h4>
-          <p style="font-size:0.8rem;color:#b0a5b3">Talla: ${i.talla}</p>
+          <p style="font-size:0.85rem;color:#b0a5b3">Talla: ${i.talla}</p>
           
           <div style="display:flex; align-items:baseline; gap:8px; margin-top:4px; flex-wrap:wrap;">
-            ${tieneDesc ? `<span style="text-decoration:line-through; color:#6e6472; font-size:0.85rem;">${formatMoney(i.precioAntes * i.cantidad)}</span>` : ''}
-            <span style="color:#e68caf; font-weight:bold; font-size:1.1rem;">${formatMoney(i.precio * i.cantidad)}</span>
+            ${tieneDesc ? `<span style="text-decoration:line-through; color:#6e6472; font-size:0.9rem;">${formatMoney(i.precioAntes * i.cantidad)}</span>` : ''}
+            <span style="color:#e68caf; font-weight:bold; font-size:1.2rem;">${formatMoney(i.precio * i.cantidad)}</span>
           </div>
-          ${tieneDesc ? `<span style="color:#2ecc71; font-size:0.75rem; font-weight:bold;">Ahorras: ${formatMoney(descItem)}</span>` : ''}
+          ${tieneDesc ? `<span style="color:#2ecc71; font-size:0.8rem; font-weight:bold;">Ahorras: ${formatMoney(descItem)}</span>` : ''}
           
           <div class="cart-item-qty">
             <button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">−</button>
@@ -270,7 +279,7 @@ function actualizarCarrito() {
     }).join('');
   }
 
-  // 2. MATEMÁTICAS
+  // MATEMÁTICAS Y MARGEN
   let precioOriginalTotal = 0; let precioActualTotal = 0; let costoTotal = 0;
   carrito.forEach(i => {
     precioOriginalTotal += i.precioAntes * i.cantidad;
@@ -311,15 +320,15 @@ function actualizarCarrito() {
   const totalPagar = Math.max(0, precioActualTotal - descuentoCupon - descuentoRegalo);
   const ahorroTotal = ahorroPrendas + descuentoCupon + descuentoRegalo;
 
-  // 3. ACTUALIZAR FILAS DE TOTALES (Asegurando que el descuento base siempre se vea si existe)
+  // ACTUALIZAR FILAS DE TOTALES
   if (ahorroPrendas > 0) {
     $('#rowOriginal').style.display = 'flex'; 
     $('#cartOriginalTotal').textContent = formatMoney(precioOriginalTotal); 
+    $('#rowItemDiscount').style.display = 'flex';
     $('#cartItemDiscount').textContent = `-${formatMoney(ahorroPrendas)}`;
-    $('#cartItemDiscount').parentElement.style.display = 'flex'; // Mostrar fila de descuento base
   } else { 
     $('#rowOriginal').style.display = 'none'; 
-    $('#cartItemDiscount').parentElement.style.display = 'none'; // Ocultar si no hay descuento base
+    $('#rowItemDiscount').style.display = 'none'; 
   }
 
   if (descuentoCupon > 0) { 
@@ -403,8 +412,9 @@ function mostrarExito(orderId) {
   document.getElementById('successOverlay').classList.add('open');
   carrito = []; cuponAplicado = null; 
   if(document.getElementById('couponInput')) document.getElementById('couponInput').value = ''; 
-  actualizarCarrito(); cerrarCarrito();
-  localStorage.removeItem('shoproses_catalogo_v5'); 
+  actualizarCarrito(); 
+  $('#cartOverlay').classList.remove('open');
+  localStorage.removeItem('shoproses_catalogo_v6'); 
   cargarProductos(); 
 }
 
@@ -414,12 +424,14 @@ function mostrarToast(msg, tipo) {
 }
 
 function bindEvents() {
-  $('#cartBtn')?.addEventListener('click', () => { $('#cartDrawer').classList.add('open'); $('#drawerOverlay').classList.add('open'); });
-  $('#closeDrawer')?.addEventListener('click', () => { $('#cartDrawer').classList.remove('open'); $('#drawerOverlay').classList.remove('open'); });
-  $('#drawerOverlay')?.addEventListener('click', () => { $('#cartDrawer').classList.remove('open'); $('#drawerOverlay').classList.remove('open'); });
+  $('#cartBtn')?.addEventListener('click', () => { $('#cartOverlay').classList.add('open'); });
+  $('#closeDrawer')?.addEventListener('click', () => { $('#cartOverlay').classList.remove('open'); });
+  $('#cartOverlay')?.addEventListener('click', (e) => { if (e.target.id === 'cartOverlay') $('#cartOverlay').classList.remove('open'); });
+  
   $('#checkoutBtn')?.addEventListener('click', finalizarCompra);
   $('#btnCancelCheckout')?.addEventListener('click', () => { document.getElementById('checkoutOverlay').classList.remove('open'); });
   $('#btnProcesarPago')?.addEventListener('click', procesarPago);
+  
   $('#closeModal')?.addEventListener('click', cerrarModal);
   $('#modalOverlay')?.addEventListener('click', (e) => { if (e.target.id === 'modalOverlay') cerrarModal(); });
   $('#successClose')?.addEventListener('click', () => $('#successOverlay').classList.remove('open'));
