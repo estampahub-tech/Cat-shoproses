@@ -1,5 +1,5 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Carrito Modal y Formato COP)
+// SHOP ROSES · Catálogo (Sistema de Puntos)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
@@ -7,7 +7,11 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtM
 const formatterCOP = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0 });
 function formatMoney(amount) { return '$' + formatterCOP.format(amount); }
 
-let META_GANANCIA_MINIMA = 100000; 
+// ⚠️ REGLA DE PUNTOS: 1 Punto = $1.000 de ganancia
+const VALOR_PUNTO = 1000; 
+
+let META_GANANCIA = 100000; 
+let META_PUNTOS = META_GANANCIA / VALOR_PUNTO; // Ej: Si la meta es $100k, la meta es 100 pts
 let PORCENTAJE_REGALO = 10; 
 
 let productos = [];
@@ -38,12 +42,13 @@ const toastContainer = $('#toastContainer');
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { $('#loader')?.classList.add('hidden'); }, 1000);
   
-  const cachedProds = localStorage.getItem('shoproses_catalogo_v6'); // v6 para forzar actualización
+  const cachedProds = localStorage.getItem('shoproses_catalogo_v7'); // v7 para forzar actualización
   if (cachedProds) {
     const parsed = JSON.parse(cachedProds);
     productos = parsed.productos;
     if (parsed.config) {
-      META_GANANCIA_MINIMA = parsed.config.meta;
+      META_GANANCIA = parsed.config.meta;
+      META_PUNTOS = META_GANANCIA / VALOR_PUNTO;
       PORCENTAJE_REGALO = parsed.config.regalo;
     }
     postCarga();
@@ -62,11 +67,12 @@ async function cargarProductos() {
     }));
 
     if (data.config) {
-      META_GANANCIA_MINIMA = Number(data.config.meta) || 100000;
+      META_GANANCIA = Number(data.config.meta) || 100000;
+      META_PUNTOS = META_GANANCIA / VALOR_PUNTO;
       PORCENTAJE_REGALO = Number(data.config.regalo) || 10;
     }
 
-    localStorage.setItem('shoproses_catalogo_v6', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA_MINIMA, regalo: PORCENTAJE_REGALO } }));
+    localStorage.setItem('shoproses_catalogo_v7', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA, regalo: PORCENTAJE_REGALO } }));
     postCarga();
   } catch (err) { 
     console.error('Error cargando:', err); 
@@ -113,10 +119,15 @@ function renderCatalogo() {
     const soldOut = Number(p.Stock) <= 0;
     const enCarrito = carrito.find(c => String(c.id) === String(p.ID));
     
+    // CALCULAR PUNTOS DE LA PRENDA
+    const puntos = Math.floor((p.Precio_Actual - p.Costo) / VALOR_PUNTO);
+    const puntosHTML = puntos > 0 ? `<span class="points-badge">⭐ +${puntos} pts</span>` : '';
+
     return `
       <article class="product-card" data-id="${p.ID}" style="animation-delay:${i * 0.06}s">
         <div class="card-image">
           ${tieneDesc ? `<span class="discount-badge">-${pct}%</span>` : ''}
+          ${puntosHTML}
           <img src="${p.ImagenURL}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x500/17141f/e68caf?text=Shop+Roses'">
           <span class="stock-tag ${soldOut ? 'soldout' : ''}">${soldOut ? 'Agotado' : p.Stock + ' disponibles'}</span>
         </div>
@@ -183,6 +194,7 @@ function abrirModal(id) {
 
   const enCarritoPrincipal = carrito.find(c => String(c.id) === String(p.ID));
   const isSoldOut = Number(p.Stock) <= 0;
+  const puntos = Math.floor((p.Precio_Actual - p.Costo) / VALOR_PUNTO);
   
   $('#modalContent').innerHTML = `
     <div class="modal-grid">
@@ -194,6 +206,9 @@ function abrirModal(id) {
           ${p.Precio_Antes > p.Precio_Actual ? `<span class="price-old">${formatMoney(p.Precio_Antes)}</span>` : ''}
           <span class="price-new">${formatMoney(p.Precio_Actual)}</span>
         </div>
+        
+        ${puntos > 0 ? `<div style="background: rgba(240, 204, 85, 0.15); border: 1px solid #f0cc55; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 20px; color: #f0cc55; font-weight: bold;">⭐ Gana ${puntos} Puntos con esta prenda</div>` : ''}
+
         ${p.Tallas ? `
           <div style="margin:15px 0;">
             <label style="display:block; font-size:0.8rem; color:#b0a5b3;">Talla:</label>
@@ -220,16 +235,11 @@ window.agregarAlCarrito = function(id) {
   if (existente) { 
     existente.cantidad++; 
   } else { 
-    // AQUÍ AGREGAMOS LA IMAGEN QUE FALTABA
+    const puntosItem = Math.floor((Number(p.Precio_Actual) - Number(p.Costo || 0)) / VALOR_PUNTO);
     carrito.push({ 
-      id: p.ID, 
-      nombre: p.Nombre, 
-      precio: Number(p.Precio_Actual), 
-      precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual),
-      costo: Number(p.Costo) || 0, 
-      talla: tallaElegida, 
-      proveedor: p.Proveedor || 'Shop Roses', 
-      imagen: p.ImagenURL, // <--- ESTO FALTABA
+      id: p.ID, nombre: p.Nombre, precio: Number(p.Precio_Actual), precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual),
+      costo: Number(p.Costo) || 0, talla: tallaElegida, proveedor: p.Proveedor || 'Shop Roses', imagen: p.ImagenURL, 
+      puntos: puntosItem, // <-- GUARDAMOS LOS PUNTOS AQUÍ
       cantidad: 1 
     }); 
   }
@@ -254,13 +264,14 @@ function actualizarCarrito() {
     cartItemsEl.innerHTML = carrito.map((i, index) => {
       const tieneDesc = i.precioAntes > i.precio;
       const descItem = (i.precioAntes - i.precio) * i.cantidad;
+      const puntosItem = (i.puntos || 0) * i.cantidad;
       
       return `
       <div class="cart-item">
         <img src="${i.imagen}" onerror="this.src='https://via.placeholder.com/100/17141f/e68caf?text=+'">
         <div class="cart-item-info">
           <h4>${i.nombre}</h4>
-          <p style="font-size:0.85rem;color:#b0a5b3">Talla: ${i.talla}</p>
+          <p style="font-size:0.85rem;color:#b0a5b3">Talla: ${i.talla} | ⭐ ${puntosItem} pts</p>
           
           <div style="display:flex; align-items:baseline; gap:8px; margin-top:4px; flex-wrap:wrap;">
             ${tieneDesc ? `<span style="text-decoration:line-through; color:#6e6472; font-size:0.9rem;">${formatMoney(i.precioAntes * i.cantidad)}</span>` : ''}
@@ -279,21 +290,23 @@ function actualizarCarrito() {
     }).join('');
   }
 
-  // MATEMÁTICAS Y MARGEN
-  let precioOriginalTotal = 0; let precioActualTotal = 0; let costoTotal = 0;
+  // MATEMÁTICAS DE PUNTOS Y DINERO
+  let precioOriginalTotal = 0; 
+  let precioActualTotal = 0; 
+  let puntosTotales = 0;
+
   carrito.forEach(i => {
     precioOriginalTotal += i.precioAntes * i.cantidad;
     precioActualTotal += i.precio * i.cantidad;
-    costoTotal += i.costo * i.cantidad;
+    puntosTotales += (i.puntos || 0) * i.cantidad;
   });
 
   const ahorroPrendas = precioOriginalTotal - precioActualTotal;
   let descuentoCupon = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(precioActualTotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
   
-  const margenActual = precioActualTotal - costoTotal;
   let descuentoRegalo = 0;
 
-  if (margenActual >= META_GANANCIA_MINIMA && carrito.length > 0) {
+  if (puntosTotales >= META_PUNTOS && carrito.length > 0) {
     $('#giftCard').style.display = 'block';
     $('#progressContainer').style.display = 'block';
     $('#progressText').innerHTML = '🎉 <strong>¡Meta alcanzada!</strong> Has desbloqueado el regalo.';
@@ -309,9 +322,9 @@ function actualizarCarrito() {
     
     if (carrito.length > 0) {
       $('#progressContainer').style.display = 'block';
-      const faltante = META_GANANCIA_MINIMA - margenActual;
-      $('#progressText').innerHTML = `Te faltan <strong>${formatMoney(faltante)}</strong> en compras para llevarte un <strong>${PORCENTAJE_REGALO}% extra</strong> de descuento.`;
-      const pct = (margenActual / META_GANANCIA_MINIMA) * 100;
+      const faltante = Math.ceil(META_PUNTOS - puntosTotales);
+      $('#progressText').innerHTML = `Te faltan <strong>${faltante} Puntos</strong> para llevarte un <strong>${PORCENTAJE_REGALO}% extra</strong> de descuento. (Tienes ${puntosTotales} pts)`;
+      const pct = (puntosTotales / META_PUNTOS) * 100;
       $('#progressBar').style.width = `${Math.min(100, pct)}%`;
       $('#progressBar').style.background = 'linear-gradient(90deg, #e68caf, #f0cc55)';
     } else { $('#progressContainer').style.display = 'none'; }
@@ -372,14 +385,18 @@ async function procesarPago() {
 
   const btn = document.getElementById('btnProcesarPago'); btn.disabled = true; btn.textContent = 'Procesando...';
 
-  let precioActualTotal = 0; let costoTotal = 0;
-  carrito.forEach(i => { precioActualTotal += i.precio * i.cantidad; costoTotal += i.costo * i.cantidad; });
+  let precioActualTotal = 0; 
+  let puntosTotales = 0;
+  
+  carrito.forEach(i => { 
+    precioActualTotal += i.precio * i.cantidad; 
+    puntosTotales += (i.puntos || 0) * i.cantidad;
+  });
 
   let descuentoCupon = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(precioActualTotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
   
-  const margenActual = precioActualTotal - costoTotal;
   let descuentoRegalo = 0;
-  if (margenActual >= META_GANANCIA_MINIMA && carrito.length > 0) {
+  if (puntosTotales >= META_PUNTOS && carrito.length > 0) {
     descuentoRegalo = Math.round(precioActualTotal * (PORCENTAJE_REGALO/100));
   }
 
@@ -414,7 +431,7 @@ function mostrarExito(orderId) {
   if(document.getElementById('couponInput')) document.getElementById('couponInput').value = ''; 
   actualizarCarrito(); 
   $('#cartOverlay').classList.remove('open');
-  localStorage.removeItem('shoproses_catalogo_v6'); 
+  localStorage.removeItem('shoproses_catalogo_v7'); 
   cargarProductos(); 
 }
 
