@@ -17,8 +17,10 @@
     #loginError { color: var(--danger); margin-top: 10px; display: none; }
     .hidden-app { display: none !important; }
 
-    h1 { font-family: 'Playfair Display', serif; color: var(--rose); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    h1 { font-family: 'Playfair Display', serif; color: var(--rose); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
+    .btn-group { display: flex; gap: 10px; }
     .btn { padding: 10px 20px; background: var(--rose); color: var(--bg); border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size:0.9rem; }
+    .btn-cache { background: #9b59b6; color: white; }
     .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
     .btn-green { background: var(--success); color: white; }
     .btn-red { background: var(--danger); color: white; }
@@ -50,7 +52,13 @@
   </div>
 
   <div id="appContent" class="hidden-app">
-    <h1>🌹 Shop Roses · Admin <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button></h1>
+    <h1>
+      🌹 Shop Roses · Admin 
+      <div class="btn-group">
+        <button class="btn btn-cache" onclick="limpiarCache()">🗑️ Limpiar Caché</button>
+        <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button>
+      </div>
+    </h1>
 
     <div class="grid-stats">
       <div class="card"><h3>Ventas Hoy</h3><p id="statVentas">$0</p></div>
@@ -98,6 +106,22 @@
     }
     document.getElementById('accessCode').addEventListener('keypress', function(e) { if (e.key === 'Enter') verificarAcceso(); });
 
+    async function limpiarCache() {
+      const btn = event.target;
+      btn.textContent = 'Borrando...';
+      btn.disabled = true;
+      try {
+        await fetch(API_URL + '?action=limpiarCache&t=' + Date.now());
+        alert('✅ Memoria borrada. Las tablets de los clientes verán los cambios de inmediato.');
+      } catch(e) {
+        alert('Error al borrar la memoria.');
+      } finally {
+        btn.textContent = '🗑️ Limpiar Caché';
+        btn.disabled = false;
+        cargarTodo();
+      }
+    }
+
     async function cargarTodo() {
       document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6">Cargando...</td></tr>';
       
@@ -128,7 +152,7 @@
           }
         } else { throw new Error(data.message); }
       } catch(e) {
-        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error al cargar. Recarga la página.</td></tr>';
+        document.getElementById('tablaPendientes').innerHTML = '<tr><td colspan="6" style="color:red;">Error al cargar.</td></tr>';
       }
     }
 
