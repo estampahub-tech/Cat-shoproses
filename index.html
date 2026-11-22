@@ -79,20 +79,55 @@
       <button class="close-btn" id="closeDrawer">✕</button>
     </div>
     <div class="drawer-body" id="cartItems"></div>
+    
     <div class="drawer-footer">
+      <!-- BARRA DE PROGRESO (Basada en Margen de Ganancia) -->
+      <div id="progressContainer" style="margin-bottom: 15px; display: none;">
+        <p id="progressText" style="font-size: 0.75rem; color: #e68caf; margin-bottom: 5px; font-weight: bold;">Sigue comprando para desbloquear un regalo...</p>
+        <div style="width: 100%; height: 8px; background: #2a2634; border-radius: 10px; overflow: hidden;">
+          <div id="progressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #e68caf, #f0cc55); transition: width 0.3s;"></div>
+        </div>
+      </div>
+
+      <!-- TARJETA DE REGALO DESBLOQUEADA -->
+      <div id="giftCard" style="display: none; background: linear-gradient(135deg, rgba(240, 204, 85, 0.2), rgba(230, 140, 175, 0.1)); border: 1px solid #f0cc55; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center; animation: pulse 2s infinite;">
+        <p style="font-size: 1.5rem; margin: 0 0 5px 0;">🎁</p>
+        <h4 style="color: #f0cc55; margin: 0 0 5px 0; font-size: 0.9rem;">¡Felicidades! Has desbloqueado un regalo</h4>
+        <p style="font-size: 0.75rem; color: #fff; margin: 0;">Se ha aplicado un <strong>10% de descuento extra</strong> automáticamente.</p>
+      </div>
+
       <div class="combo-hint" id="comboHint"></div>
+      
       <div class="coupon-box" style="margin-bottom: 15px; display: flex; gap: 8px;">
         <input type="text" id="couponInput" placeholder="Código de cupón" style="flex:1; padding: 12px; background: #17141f; border: 1px solid rgba(230, 140, 175, 0.2); border-radius: 100px; color: #fff; outline:none;">
         <button id="btnCoupon" style="padding: 0 20px; background: #e68caf; color: #0a0810; border: none; border-radius: 100px; font-weight: bold; cursor: pointer;">Aplicar</button>
       </div>
+
       <div class="totals">
-        <div class="total-row"><span>Subtotal</span><span id="cartSubtotal">$0</span></div>
-        <div class="total-row discount" id="cartDiscountRow" style="display:none">
-          <span>🎁 Descuento</span><span id="cartDiscount">-$0</span>
+        <div class="total-row" id="rowOriginal" style="display: none; color: #6e6472;">
+          <span>Precio original</span><span id="cartOriginalTotal" style="text-decoration: line-through;">$0</span>
         </div>
-        <div class="total-row grand"><span>Total</span><span id="cartTotal">$0</span></div>
+        
+        <div class="total-row" style="color: #2ecc71;">
+          <span>Descuento prendas</span><span id="cartItemDiscount">-$0</span>
+        </div>
+        
+        <div class="total-row discount" id="cartDiscountRow" style="display:none; color: #2ecc71;">
+          <span>🎁 Cupón aplicado</span><span id="cartDiscount">-$0</span>
+        </div>
+
+        <div class="total-row discount" id="cartGiftRow" style="display:none; color: #f0cc55;">
+          <span>✨ Regalo desbloqueado</span><span id="cartGiftDiscount">-$0</span>
+        </div>
+        
+        <div class="total-row grand"><span>Total a pagar</span><span id="cartTotal">$0</span></div>
+        
+        <div id="savingsBanner" style="display: none; background: rgba(46, 204, 113, 0.15); border: 1px solid #2ecc71; padding: 10px; border-radius: 8px; text-align: center; margin-top: 10px;">
+          <p style="color: #2ecc71; font-size: 0.85rem; font-weight: bold; margin: 0;">✨ ¡Estás ahorrando <span id="cartTotalSavings">$0</span>!</p>
+        </div>
       </div>
-      <button class="btn-primary" id="checkoutBtn">
+      
+      <button class="btn-primary" id="checkoutBtn" style="margin-top: 15px;">
         <span>Confirmar pedido</span>
       </button>
     </div>
