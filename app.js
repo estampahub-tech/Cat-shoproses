@@ -1,8 +1,12 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Con Ahorro Total y Gamificación)
+// SHOP ROSES · Catálogo (Configuración Dinámica)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
+
+// Valores por defecto (se actualizan desde el Admin)
+let META_GANANCIA_MINIMA = 100000; 
+let PORCENTAJE_REGALO = 10; 
 
 let productos = [];
 let productoFiltrado = [];
@@ -30,9 +34,14 @@ const toastContainer = $('#toastContainer');
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { $('#loader')?.classList.add('hidden'); }, 1000);
   
-  const cachedProds = localStorage.getItem('shoproses_catalogo_v3');
+  const cachedProds = localStorage.getItem('shoproses_catalogo_v4'); // Cambié a v4
   if (cachedProds) {
-    productos = JSON.parse(cachedProds);
+    const parsed = JSON.parse(cachedProds);
+    productos = parsed.productos;
+    if (parsed.config) {
+      META_GANANCIA_MINIMA = parsed.config.meta;
+      PORCENTAJE_REGALO = parsed.config.regalo;
+    }
     postCarga();
   }
   cargarProductos();
@@ -43,10 +52,17 @@ async function cargarProductos() {
   try {
     const res = await fetch(`${APPS_SCRIPT_URL}?action=getProducts&t=${Date.now()}`);
     const data = await res.json();
+    
     productos = (data.products || []).map(p => ({
-      ...p, Precio_Actual: Number(p.Precio_Actual) || 0, Precio_Antes: Number(p.Precio_Antes) || 0, Stock: Number(p.Stock) || 0
+      ...p, Precio_Actual: Number(p.Precio_Actual) || 0, Precio_Antes: Number(p.Precio_Antes) || 0, Costo: Number(p.Costo) || 0, Stock: Number(p.Stock) || 0
     }));
-    localStorage.setItem('shoproses_catalogo_v3', JSON.stringify(productos));
+
+    if (data.config) {
+      META_GANANCIA_MINIMA = Number(data.config.meta) || 100000;
+      PORCENTAJE_REGALO = Number(data.config.regalo) || 10;
+    }
+
+    localStorage.setItem('shoproses_catalogo_v4', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA_MINIMA, regalo: PORCENTAJE_REGALO } }));
     postCarga();
   } catch (err) { 
     console.error('Error cargando:', err); 
@@ -201,19 +217,12 @@ window.agregarAlCarrito = function(id) {
     existente.cantidad++; 
   } else { 
     carrito.push({ 
-      id: p.ID, 
-      nombre: p.Nombre, 
-      precio: Number(p.Precio_Actual), 
-      precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual), // Guardamos el precio anterior
-      talla: tallaElegida, 
-      proveedor: p.Proveedor || 'Shop Roses', 
-      cantidad: 1 
+      id: p.ID, nombre: p.Nombre, precio: Number(p.Precio_Actual), precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual),
+      costo: Number(p.Costo) || 0, talla: tallaElegida, proveedor: p.Proveedor || 'Shop Roses', cantidad: 1 
     }); 
   }
   
-  cerrarModal(); 
-  actualizarCarrito(); 
-  mostrarToast(`Agregado: ${p.Nombre}`, 'success');
+  cerrarModal(); actualizarCarrito(); mostrarToast(`Agregado: ${p.Nombre}`, 'success');
 }
 
 function cerrarModal() { $('#modalOverlay').classList.remove('open'); }
@@ -224,7 +233,6 @@ function actualizarCarrito() {
   cartCount.classList.toggle('show', totalItems > 0);
   drawerSub.textContent = `${totalItems} prenda${totalItems !== 1 ? 's' : ''}`;
   
-  // 1. RENDERIZAR ITEMS
   if (!carrito.length) { 
     cartItemsEl.innerHTML = `<div style="text-align:center; padding:20px; color:#aaa;">Vacío</div>`; 
   } else {
@@ -233,90 +241,74 @@ function actualizarCarrito() {
       return `
       <div class="cart-item">
         <div class="cart-item-info">
-          <h4>${i.nombre}</h4>
-          <p style="font-size:0.75rem;color:#b0a5b3">Talla: ${i.talla}</p>
+          <h4>${i.nombre}</h4><p style="font-size:0.75rem;color:#b0a5b3">Talla: ${i.talla}</p>
           <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:5px;">
             ${tieneDesc ? `<span style="text-decoration:line-through; color:#6e6472; font-size:0.75rem;">$${i.precioAntes * i.cantidad}</span>` : ''}
             <span class="cart-item-price" style="color:#e68caf; font-weight:bold;">$${i.precio * i.cantidad}</span>
           </div>
-          <div class="cart-item-qty">
-            <button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">−</button>
-            <span>${i.cantidad}</span>
-            <button class="qty-btn" onclick="cambiarCantidad(${index}, 1)">+</button>
-          </div>
+          <div class="cart-item-qty"><button class="qty-btn" onclick="cambiarCantidad(${index}, -1)">−</button><span>${i.cantidad}</span><button class="qty-btn" onclick="cambiarCantidad(${index}, 1)">+</button></div>
         </div>
         <button class="remove-btn" onclick="eliminarDelCarrito(${index})">✕</button>
       </div>`
     }).join('');
   }
 
-  // 2. MATEMÁTICAS DEL AHORRO
-  let precioOriginalTotal = 0;
-  let precioActualTotal = 0;
-
+  let precioOriginalTotal = 0; let precioActualTotal = 0; let costoTotal = 0;
   carrito.forEach(i => {
     precioOriginalTotal += i.precioAntes * i.cantidad;
     precioActualTotal += i.precio * i.cantidad;
+    costoTotal += i.costo * i.cantidad;
   });
 
   const ahorroPrendas = precioOriginalTotal - precioActualTotal;
   let descuentoCupon = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(precioActualTotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
   
-  const totalPagar = Math.max(0, precioActualTotal - descuentoCupon);
-  const ahorroTotal = ahorroPrendas + descuentoCupon;
+  const margenActual = precioActualTotal - costoTotal;
+  let descuentoRegalo = 0;
 
-  // 3. ACTUALIZAR TEXTOS EN PANTALLA
-  if (ahorroPrendas > 0) {
-    $('#rowOriginal').style.display = 'flex';
-    $('#cartOriginalTotal').textContent = `$${precioOriginalTotal}`;
-    $('#cartItemDiscount').textContent = `-$${ahorroPrendas}`;
+  if (margenActual >= META_GANANCIA_MINIMA && carrito.length > 0) {
+    $('#giftCard').style.display = 'block';
+    $('#progressContainer').style.display = 'block';
+    $('#progressText').innerHTML = '🎉 <strong>¡Meta alcanzada!</strong> Has desbloqueado el regalo.';
+    $('#progressBar').style.width = '100%';
+    $('#progressBar').style.background = '#f0cc55';
+    
+    descuentoRegalo = Math.round(precioActualTotal * (PORCENTAJE_REGALO/100));
+    $('#cartGiftRow').style.display = 'flex';
+    $('#cartGiftDiscount').textContent = `-$${descuentoRegalo}`;
   } else {
-    $('#rowOriginal').style.display = 'none';
-    $('#cartItemDiscount').textContent = `$0`;
+    $('#giftCard').style.display = 'none';
+    $('#cartGiftRow').style.display = 'none';
+    
+    if (carrito.length > 0) {
+      $('#progressContainer').style.display = 'block';
+      const faltante = META_GANANCIA_MINIMA - margenActual;
+      $('#progressText').innerHTML = `Te faltan <strong>$${faltante.toLocaleString()}</strong> en compras para llevarte un <strong>${PORCENTAJE_REGALO}% extra</strong> de descuento.`;
+      const pct = (margenActual / META_GANANCIA_MINIMA) * 100;
+      $('#progressBar').style.width = `${Math.min(100, pct)}%`;
+      $('#progressBar').style.background = 'linear-gradient(90deg, #e68caf, #f0cc55)';
+    } else { $('#progressContainer').style.display = 'none'; }
   }
+
+  const totalPagar = Math.max(0, precioActualTotal - descuentoCupon - descuentoRegalo);
+  const ahorroTotal = ahorroPrendas + descuentoCupon + descuentoRegalo;
+
+  if (ahorroPrendas > 0) {
+    $('#rowOriginal').style.display = 'flex'; $('#cartOriginalTotal').textContent = `$${precioOriginalTotal}`; $('#cartItemDiscount').textContent = `-$${ahorroPrendas}`;
+  } else { $('#rowOriginal').style.display = 'none'; $('#cartItemDiscount').textContent = `$0`; }
 
   if (descuentoCupon > 0) { 
-    $('#cartDiscountRow').style.display = 'flex'; 
-    $('#cartDiscount').textContent = `-$${descuentoCupon}`; 
-    comboHint.innerHTML = `✓ Cupón <strong>${cuponAplicado.Codigo}</strong> aplicado.`; 
-    comboHint.style.display = 'block'; 
-  } else { 
-    $('#cartDiscountRow').style.display = 'none'; 
-    comboHint.style.display = 'none'; 
-  }
+    $('#cartDiscountRow').style.display = 'flex'; $('#cartDiscount').textContent = `-$${descuentoCupon}`; comboHint.innerHTML = `✓ Cupón <strong>${cuponAplicado.Codigo}</strong> aplicado.`; comboHint.style.display = 'block'; 
+  } else { $('#cartDiscountRow').style.display = 'none'; comboHint.style.display = 'none'; }
 
   $('#cartTotal').textContent = `$${totalPagar}`;
 
-  // 4. MOSTRAR EL BANNER DE AHORRO TOTAL
   if (ahorroTotal > 0 && carrito.length > 0) {
-    $('#savingsBanner').style.display = 'block';
-    $('#cartTotalSavings').textContent = `$${ahorroTotal}`;
-  } else {
-    $('#savingsBanner').style.display = 'none';
-  }
-
-  // 5. BARRA DE PROGRESO (META: 3 PRENDAS)
-  const progressContainer = $('#progressContainer');
-  if (carrito.length > 0 && totalItems < 3) {
-    progressContainer.style.display = 'block';
-    const faltan = 3 - totalItems;
-    $('#progressText').textContent = `¡Agrega ${faltan} prenda${faltan>1?'s':''} más para un regalo sorpresa! 🎁`;
-    const pct = (totalItems / 3) * 100;
-    $('#progressBar').style.width = `${pct}%`;
-  } else if (totalItems >= 3) {
-    progressContainer.style.display = 'block';
-    $('#progressText').textContent = `🎉 ¡Felicidades! Tienes un regalo sorpresa.`;
-    $('#progressBar').style.width = '100%';
-  } else {
-    progressContainer.style.display = 'none';
-  }
+    $('#savingsBanner').style.display = 'block'; $('#cartTotalSavings').textContent = `$${ahorroTotal}`;
+  } else { $('#savingsBanner').style.display = 'none'; }
 }
 
-window.cambiarCantidad = function(index, delta) { 
-  carrito[index].cantidad += delta; 
-  if (carrito[index].cantidad <= 0) carrito.splice(index, 1); 
-  actualizarCarrito(); 
-}
+window.cambiarCantidad = function(index, delta) { carrito[index].cantidad += delta; if (carrito[index].cantidad <= 0) carrito.splice(index, 1); actualizarCarrito(); }
 window.eliminarDelCarrito = function(index) { carrito.splice(index, 1); actualizarCarrito(); }
 
 function finalizarCompra() {
@@ -333,13 +325,22 @@ async function procesarPago() {
 
   const btn = document.getElementById('btnProcesarPago'); btn.disabled = true; btn.textContent = 'Procesando...';
 
-  // MATEMÁTICAS FINALES PARA ENVIAR AL SERVIDOR
-  let precioActualTotal = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  let precioActualTotal = 0; let costoTotal = 0;
+  carrito.forEach(i => { precioActualTotal += i.precio * i.cantidad; costoTotal += i.costo * i.cantidad; });
+
   let descuentoCupon = cuponAplicado ? (cuponAplicado.Tipo === '%' ? Math.round(precioActualTotal * (cuponAplicado.Valor/100)) : cuponAplicado.Valor) : 0;
-  const totalFinal = Math.max(0, precioActualTotal - descuentoCupon);
+  
+  const margenActual = precioActualTotal - costoTotal;
+  let descuentoRegalo = 0;
+  if (margenActual >= META_GANANCIA_MINIMA && carrito.length > 0) {
+    descuentoRegalo = Math.round(precioActualTotal * (PORCENTAJE_REGALO/100));
+  }
+
+  const descuentoTotal = descuentoCupon + descuentoRegalo;
+  const totalFinal = Math.max(0, precioActualTotal - descuentoTotal);
 
   const payload = { 
-    action: 'placeOrder', items: carrito, subtotal: precioActualTotal, descuento: descuentoCupon, total: totalFinal, 
+    action: 'placeOrder', items: carrito, subtotal: precioActualTotal, descuento: descuentoTotal, total: totalFinal, 
     cliente_nombre: nombre, cliente_id: cedula, cliente_cel: celular, cliente_email: email 
   };
 
@@ -362,12 +363,10 @@ function mostrarExito(orderId) {
   document.getElementById('checkoutOverlay').classList.remove('open');
   document.getElementById('successOrder').textContent = `Pedido ${orderId}`;
   document.getElementById('successOverlay').classList.add('open');
-  
   carrito = []; cuponAplicado = null; 
   if(document.getElementById('couponInput')) document.getElementById('couponInput').value = ''; 
   actualizarCarrito(); cerrarCarrito();
-  
-  localStorage.removeItem('shoproses_catalogo_v3'); 
+  localStorage.removeItem('shoproses_catalogo_v4'); 
   cargarProductos(); 
 }
 
