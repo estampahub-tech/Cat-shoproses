@@ -40,6 +40,13 @@
 
     .date-filter { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; background: var(--surface); padding: 15px; border-radius: 12px; }
     .date-filter input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #0a0810; color: white; }
+    
+    /* Estilos para la Configuración */
+    .config-box { background: var(--surface); padding: 20px; border-radius: 12px; border: 1px solid var(--gold); margin-bottom: 30px; }
+    .config-box h3 { color: var(--gold); font-size: 1rem; margin-bottom: 15px; }
+    .config-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .config-row label { font-size: 0.85rem; color: var(--dim); }
+    .config-row input { padding: 10px; border-radius: 8px; border: 1px solid #444; background: #0a0810; color: white; width: 120px; }
   </style>
 </head>
 <body>
@@ -59,6 +66,20 @@
         <button class="btn" onclick="cargarTodo()">↻ Actualizar Datos</button>
       </div>
     </h1>
+
+    <!-- CONFIGURACIÓN DE REGALO -->
+    <div class="config-box">
+      <h3>⚙️ Configuración de la Barra de Progreso (Regalo)</h3>
+      <div class="config-row">
+        <label>Margen de ganancia requerido ($):</label>
+        <input type="number" id="cfgMeta" placeholder="Ej: 100000">
+      </div>
+      <div class="config-row">
+        <label>Porcentaje de descuento extra (%):</label>
+        <input type="number" id="cfgRegalo" placeholder="Ej: 10">
+      </div>
+      <button class="btn btn-sm" style="margin-top:10px; background:var(--gold);" onclick="guardarConfig()">Guardar Configuración</button>
+    </div>
 
     <div class="grid-stats">
       <div class="card"><h3>Ventas Hoy</h3><p id="statVentas">$0</p></div>
@@ -107,19 +128,27 @@
     document.getElementById('accessCode').addEventListener('keypress', function(e) { if (e.key === 'Enter') verificarAcceso(); });
 
     async function limpiarCache() {
-      const btn = event.target;
-      btn.textContent = 'Borrando...';
-      btn.disabled = true;
+      const btn = event.target; btn.textContent = 'Borrando...'; btn.disabled = true;
+      try { await fetch(API_URL + '?action=limpiarCache&t=' + Date.now()); alert('✅ Memoria borrada. Los catálogos se actualizarán.'); } 
+      catch(e) { alert('Error al borrar la memoria.'); } 
+      finally { btn.textContent = '🗑️ Limpiar Caché'; btn.disabled = false; cargarTodo(); }
+    }
+
+    async function guardarConfig() {
+      const meta = document.getElementById('cfgMeta').value;
+      const regalo = document.getElementById('cfgRegalo').value;
+      if(!meta || !regalo) return alert('Por favor llena ambos campos.');
+
+      const btn = event.target; btn.textContent = 'Guardando...'; btn.disabled = true;
       try {
-        await fetch(API_URL + '?action=limpiarCache&t=' + Date.now());
-        alert('✅ Memoria borrada. Las tablets de los clientes verán los cambios de inmediato.');
-      } catch(e) {
-        alert('Error al borrar la memoria.');
-      } finally {
-        btn.textContent = '🗑️ Limpiar Caché';
-        btn.disabled = false;
-        cargarTodo();
-      }
+        await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'saveConfig', meta: Number(meta), porcentaje: Number(regalo) })
+        });
+        alert('✅ Configuración guardada. Los clientes verán las nuevas reglas.');
+      } catch(e) { alert('Error al guardar.'); } 
+      finally { btn.textContent = 'Guardar Configuración'; btn.disabled = false; cargarTodo(); }
     }
 
     async function cargarTodo() {
@@ -134,6 +163,12 @@
           document.getElementById('statPedidos').textContent = Number(data.stats.pedidosHoy) || 0;
           document.getElementById('statStock').textContent = Number(data.stats.stockTotal) || 0;
           
+          // Cargar la configuración actual en los inputs
+          if(data.config) {
+            document.getElementById('cfgMeta').value = data.config.meta;
+            document.getElementById('cfgRegalo').value = data.config.regalo;
+          }
+
           let stockHtml = (data.bajoStock || []).map(p => `<tr><td>${p.nombre}</td><td>${p.proveedor}</td><td><span class="tag low">${p.stock}</span></td></tr>`).join('');
           document.getElementById('tablaStock').innerHTML = stockHtml || '<tr><td colspan="3">Inventario saludable</td></tr>';
 
