@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { $('#loader')?.classList.add('hidden'); }, 1000);
   
   // Cargar productos desde la memoria del celular de inmediato (si existen)
-  const cachedProds = localStorage.getItem('shoproses_catalogo');
+  const cachedProds = localStorage.getItem('shoproses_catalogo_v2');
   if (cachedProds) {
     productos = JSON.parse(cachedProds);
     postCarga();
@@ -50,7 +50,7 @@ async function cargarProductos() {
     productos = (data.products || []).map(p => ({
       ...p, Precio_Actual: Number(p.Precio_Actual) || 0, Precio_Antes: Number(p.Precio_Antes) || 0, Stock: Number(p.Stock) || 0
     }));
-    localStorage.setItem('shoproses_catalogo', JSON.stringify(productos)); // Guardar en caché
+    localStorage.setItem('shoproses_catalogo_v2', JSON.stringify(productos)); // Guardar en caché
     postCarga();
   } catch (err) { 
     console.error('Error cargando:', err); 
@@ -132,52 +132,68 @@ function renderCatalogo() {
 function abrirModal(id) {
   const p = productos.find(x => String(x.ID) === String(id));
   if (!p) return;
+  
   let tallasOpciones = p.Tallas ? String(p.Tallas).split(',').map(t => `<option value="${t.trim()}">${t.trim()}</option>`).join('') : '';
   let complementosHTML = '';
+
+  // Buscamos el ID del complemento ignorando si tiene espacios o mayúsculas
+  let compIdRaw = p.ComplementoID || p.Complemento || p.complementoID || p.complementos;
   
-  if (p.ComplementoID) {
+  if (compIdRaw) {
     let itemsCrossSell = '';
-    String(p.ComplementoID).split(',').forEach(compId => {
-      const complemento = productos.find(x => String(x.ID) === String(compId.trim()));
-      if (complemento && complemento.Stock > 0) {
+    String(compIdRaw).split(',').forEach(compId => {
+      const cleanId = compId.trim(); // Quitamos espacios en blanco
+      const complemento = productos.find(x => String(x.ID).trim() === cleanId);
+      
+      if (complemento) {
         const enCarritoComp = carrito.find(c => String(c.id) === String(complemento.ID));
+        // Verificamos stock (por si acaso viene vacío)
+        const tieneStock = complemento.Stock === undefined || Number(complemento.Stock) > 0;
+        
         itemsCrossSell += `
-          <div class="cross-sell-item" style="margin-bottom: 10px; display:flex; gap:10px; background:#1f1b2b; padding:10px; border-radius:8px;">
-            <img src="${complemento.ImagenURL}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;">
-            <div style="flex:1;"><h4 style="font-size:0.8rem; margin:0;">${complemento.Nombre}</h4><p style="font-size:0.8rem; color:#e68caf; margin:0;">+ $${complemento.Precio_Actual}</p></div>
-            <button onclick="abrirModal('${complemento.ID}')" style="background:#e68caf; border:none; width:25px; border-radius:50%; cursor:pointer;">${enCarritoComp ? '✓' : '+'}</button>
+          <div class="cross-sell-item" style="margin-bottom: 10px; display:flex; gap:10px; background:#1f1b2b; padding:10px; border-radius:8px; align-items:center;">
+            <img src="${complemento.ImagenURL}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;" onerror="this.src='https://via.placeholder.com/40'">
+            <div style="flex:1;">
+              <h4 style="font-size:0.8rem; margin:0; color:#fff;">${complemento.Nombre}</h4>
+              <p style="font-size:0.8rem; color:#e68caf; margin:0;">+ $${complemento.Precio_Actual}</p>
+            </div>
+            ${tieneStock ? 
+              `<button onclick="abrirModal('${complemento.ID}')" style="background:#e68caf; color:#0a0810; border:none; width:28px; height:28px; border-radius:50%; cursor:pointer; font-weight:bold; font-size:1.1rem;">${enCarritoComp ? '✓' : '+'}</button>` 
+              : '<span style="font-size:0.7rem; color:#ff4d6d; font-weight:bold;">Agotado</span>'}
           </div>`;
       }
     });
-    if (itemsCrossSell) complementosHTML = `<div style="margin-top:15px; border-top:1px dashed #444; padding-top:10px;"><p style="font-size:0.8rem; color:#e68caf;">Combínalo:</p>${itemsCrossSell}</div>`;
+    
+    if (itemsCrossSell) {
+      complementosHTML = `<div style="margin-top:15px; border-top:1px dashed #444; padding-top:10px;"><p style="font-size:0.8rem; color:#e68caf; font-weight:bold; margin-bottom:8px;">🌹 Combínalo y ahorra:</p>${itemsCrossSell}</div>`;
+    }
   }
 
   const enCarritoPrincipal = carrito.find(c => String(c.id) === String(p.ID));
+  
   $('#modalContent').innerHTML = `
     <div class="modal-grid">
-      <div class="modal-img"><img src="${p.ImagenURL}"></div>
+      <div class="modal-img"><img src="${p.ImagenURL}" onerror="this.src='https://via.placeholder.com/500'"></div>
       <div class="modal-info">
         <p class="modal-cat">${p.Categoria}</p>
         <h2 class="modal-title">${p.Nombre}</h2>
-        <div class="modal-prices">${p.Precio_Antes > p.Precio_Actual ? `<span class="price-old">$${p.Precio_Antes}</span>` : ''}<span class="price-new">$${p.Precio_Actual}</span></div>
-        ${p.Tallas ? `<div style="margin:15px 0;"><label style="display:block; font-size:0.8rem; color:#b0a5b3;">Talla:</label><select id="selectTalla" style="width:100%; padding:10px; background:#17141f; color:white; border:1px solid #e68caf; border-radius:8px;">${tallasOpciones}</select></div>` : ''}
-        <button class="modal-cta" ${p.Stock <= 0 && !enCarritoPrincipal ? 'disabled' : ''} onclick="agregarAlCarrito('${p.ID}')">${enCarritoPrincipal ? 'Agregar otra unidad' : 'Agregar a mi selección'}</button>
+        <div class="modal-prices">
+          ${p.Precio_Antes > p.Precio_Actual ? `<span class="price-old">$${p.Precio_Antes}</span>` : ''}
+          <span class="price-new">$${p.Precio_Actual}</span>
+        </div>
+        ${p.Tallas ? `
+          <div style="margin:15px 0;">
+            <label style="display:block; font-size:0.8rem; color:#b0a5b3;">Talla:</label>
+            <select id="selectTalla" style="width:100%; padding:10px; background:#17141f; color:white; border:1px solid #e68caf; border-radius:8px;">${tallasOpciones}</select>
+          </div>` : ''}
+        <button class="modal-cta" ${p.Stock <= 0 && !enCarritoPrincipal ? 'disabled' : ''} onclick="agregarAlCarrito('${p.ID}')">
+          ${enCarritoPrincipal ? 'Agregar otra unidad' : 'Agregar a mi selección'}
+        </button>
+        
         ${complementosHTML}
       </div>
     </div>`;
   $('#modalOverlay').classList.add('open');
-}
-
-window.agregarAlCarrito = function(id) {
-  const p = productos.find(x => String(x.ID) === String(id));
-  const tallaSelect = document.getElementById('selectTalla');
-  const tallaElegida = tallaSelect ? tallaSelect.value : 'Única';
-  const existente = carrito.find(x => String(x.id) === String(id) && x.talla === tallaElegida);
-  
-  if (existente) { existente.cantidad++; } 
-  else { carrito.push({ id: p.ID, nombre: p.Nombre, precio: p.Precio_Actual, talla: tallaElegida, proveedor: p.Proveedor, cantidad: 1 }); }
-  
-  cerrarModal(); actualizarCarrito(); mostrarToast(`Agregado: ${p.Nombre}`, 'success');
 }
 
 function cerrarModal() { $('#modalOverlay').classList.remove('open'); }
@@ -291,7 +307,7 @@ function mostrarExito(orderId) {
   cerrarCarrito();
   
   // Limpiamos caché y volvemos a cargar el stock
-  localStorage.removeItem('shoproses_catalogo'); 
+  localStorage.removeItem('shoproses_catalogo_v2'); 
   cargarProductos(); 
 }
 function mostrarToast(msg, tipo) {
