@@ -1,5 +1,5 @@
 // ==========================================================
-// SHOP ROSES · Catálogo (Sistema de Puntos)
+// SHOP ROSES · Catálogo (Galería de Fotos Múltiples)
 // ==========================================================
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtMtapzZttYTWaq1pG43XTNvpExw2IVkARrsHIiXUCSf7MhiizMJpJ9GA/exec';
@@ -7,11 +7,9 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw7gnp6dx6DywtM
 const formatterCOP = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0 });
 function formatMoney(amount) { return '$' + formatterCOP.format(amount); }
 
-// ⚠️ REGLA DE PUNTOS: 1 Punto = $1.000 de ganancia
 const VALOR_PUNTO = 1000; 
-
 let META_GANANCIA = 100000; 
-let META_PUNTOS = META_GANANCIA / VALOR_PUNTO; // Ej: Si la meta es $100k, la meta es 100 pts
+let META_PUNTOS = META_GANANCIA / VALOR_PUNTO; 
 let PORCENTAJE_REGALO = 10; 
 
 let productos = [];
@@ -39,10 +37,21 @@ const cartTotal = $('#cartTotal');
 const comboHint = $('#comboHint');
 const toastContainer = $('#toastContainer');
 
+// FUNCIONES PARA MANEJAR MÚLTIPLES IMÁGENES
+function getFirstImage(urlString) {
+  if (!urlString) return 'https://via.placeholder.com/500/17141f/e68caf?text=Shop+Roses';
+  return urlString.split(',')[0].trim();
+}
+
+function getAllImages(urlString) {
+  if (!urlString) return [];
+  return urlString.split(',').map(u => u.trim()).filter(Boolean);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { $('#loader')?.classList.add('hidden'); }, 1000);
   
-  const cachedProds = localStorage.getItem('shoproses_catalogo_v7'); // v7 para forzar actualización
+  const cachedProds = localStorage.getItem('shoproses_catalogo_v8'); // v8 para actualizar
   if (cachedProds) {
     const parsed = JSON.parse(cachedProds);
     productos = parsed.productos;
@@ -72,7 +81,7 @@ async function cargarProductos() {
       PORCENTAJE_REGALO = Number(data.config.regalo) || 10;
     }
 
-    localStorage.setItem('shoproses_catalogo_v7', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA, regalo: PORCENTAJE_REGALO } }));
+    localStorage.setItem('shoproses_catalogo_v8', JSON.stringify({ productos: productos, config: { meta: META_GANANCIA, regalo: PORCENTAJE_REGALO } }));
     postCarga();
   } catch (err) { 
     console.error('Error cargando:', err); 
@@ -118,17 +127,16 @@ function renderCatalogo() {
     const pct = tieneDesc ? Math.round((1 - p.Precio_Actual / p.Precio_Antes) * 100) : 0;
     const soldOut = Number(p.Stock) <= 0;
     const enCarrito = carrito.find(c => String(c.id) === String(p.ID));
-    
-    // CALCULAR PUNTOS DE LA PRENDA
     const puntos = Math.floor((p.Precio_Actual - p.Costo) / VALOR_PUNTO);
     const puntosHTML = puntos > 0 ? `<span class="points-badge">⭐ +${puntos} pts</span>` : '';
+    const imgPrincipal = getFirstImage(p.ImagenURL);
 
     return `
       <article class="product-card" data-id="${p.ID}" style="animation-delay:${i * 0.06}s">
         <div class="card-image">
           ${tieneDesc ? `<span class="discount-badge">-${pct}%</span>` : ''}
           ${puntosHTML}
-          <img src="${p.ImagenURL}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x500/17141f/e68caf?text=Shop+Roses'">
+          <img src="${imgPrincipal}" loading="lazy" onerror="this.src='https://via.placeholder.com/400x500/17141f/e68caf?text=Shop+Roses'">
           <span class="stock-tag ${soldOut ? 'soldout' : ''}">${soldOut ? 'Agotado' : p.Stock + ' disponibles'}</span>
         </div>
         <div class="card-body">
@@ -154,10 +162,32 @@ function renderCatalogo() {
   });
 }
 
+// NUEVA FUNCIÓN PARA CAMBIAR LA FOTO EN EL MODAL
+window.cambiarFotoPrincipal = function(elemento, url) {
+  document.getElementById('modalMainImg').src = url;
+  document.querySelectorAll('.gallery-thumb').forEach(img => img.classList.remove('active'));
+  elemento.classList.add('active');
+}
+
 function abrirModal(id) {
   const p = productos.find(x => String(x.ID).trim() === String(id).trim());
   if (!p) return;
   
+  // Lógica de Galería de Imágenes
+  const imagenes = getAllImages(p.ImagenURL);
+  const mainImg = imagenes.length > 0 ? imagenes[0] : 'https://via.placeholder.com/500/17141f/e68caf?text=Shop+Roses';
+  
+  let thumbsHTML = '';
+  if (imagenes.length > 1) {
+    thumbsHTML = `
+      <div class="gallery-thumbs">
+        ${imagenes.map((img, idx) => `
+          <img src="${img}" class="gallery-thumb ${idx === 0 ? 'active' : ''}" onclick="cambiarFotoPrincipal(this, '${img}')" onerror="this.style.display='none'">
+        `).join('')}
+      </div>
+    `;
+  }
+
   let tallasOpciones = p.Tallas ? String(p.Tallas).split(',').map(t => `<option value="${t.trim()}">${t.trim()}</option>`).join('') : '';
   let complementosHTML = '';
 
@@ -172,10 +202,11 @@ function abrirModal(id) {
       if (complemento) {
         const enCarritoComp = carrito.find(c => String(c.id) === String(complemento.ID));
         const tieneStock = complemento.Stock === undefined || Number(complemento.Stock) > 0;
+        const imgComp = getFirstImage(complemento.ImagenURL);
         
         itemsCrossSell += `
           <div class="cross-sell-item" style="margin-bottom: 10px; display:flex; gap:10px; background:#1f1b2b; padding:10px; border-radius:8px; align-items:center;">
-            <img src="${complemento.ImagenURL}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;" onerror="this.src='https://via.placeholder.com/40'">
+            <img src="${imgComp}" style="width:40px; height:40px; object-fit:cover; border-radius:5px;" onerror="this.src='https://via.placeholder.com/40'">
             <div style="flex:1;">
               <h4 style="font-size:0.8rem; margin:0; color:#fff;">${complemento.Nombre}</h4>
               <p style="font-size:0.8rem; color:#e68caf; margin:0;">+ ${formatMoney(complemento.Precio_Actual)}</p>
@@ -198,7 +229,10 @@ function abrirModal(id) {
   
   $('#modalContent').innerHTML = `
     <div class="modal-grid">
-      <div class="modal-img"><img src="${p.ImagenURL}" onerror="this.src='https://via.placeholder.com/500'"></div>
+      <div class="modal-img-container">
+        <img id="modalMainImg" src="${mainImg}" onerror="this.src='https://via.placeholder.com/500'">
+        ${thumbsHTML}
+      </div>
       <div class="modal-info">
         <p class="modal-cat">${p.Categoria}</p>
         <h2 class="modal-title">${p.Nombre}</h2>
@@ -238,9 +272,8 @@ window.agregarAlCarrito = function(id) {
     const puntosItem = Math.floor((Number(p.Precio_Actual) - Number(p.Costo || 0)) / VALOR_PUNTO);
     carrito.push({ 
       id: p.ID, nombre: p.Nombre, precio: Number(p.Precio_Actual), precioAntes: Number(p.Precio_Antes) || Number(p.Precio_Actual),
-      costo: Number(p.Costo) || 0, talla: tallaElegida, proveedor: p.Proveedor || 'Shop Roses', imagen: p.ImagenURL, 
-      puntos: puntosItem, // <-- GUARDAMOS LOS PUNTOS AQUÍ
-      cantidad: 1 
+      costo: Number(p.Costo) || 0, talla: tallaElegida, proveedor: p.Proveedor || 'Shop Roses', imagen: getFirstImage(p.ImagenURL), 
+      puntos: puntosItem, cantidad: 1 
     }); 
   }
   
@@ -257,7 +290,6 @@ function actualizarCarrito() {
   cartCount.classList.toggle('show', totalItems > 0);
   drawerSub.textContent = `${totalItems} prenda${totalItems !== 1 ? 's' : ''}`;
   
-  // RENDERIZAR ITEMS
   if (!carrito.length) { 
     cartItemsEl.innerHTML = `<div style="text-align:center; padding:20px; color:#aaa;">Vacío</div>`; 
   } else {
@@ -290,10 +322,7 @@ function actualizarCarrito() {
     }).join('');
   }
 
-  // MATEMÁTICAS DE PUNTOS Y DINERO
-  let precioOriginalTotal = 0; 
-  let precioActualTotal = 0; 
-  let puntosTotales = 0;
+  let precioOriginalTotal = 0; let precioActualTotal = 0; let puntosTotales = 0;
 
   carrito.forEach(i => {
     precioOriginalTotal += i.precioAntes * i.cantidad;
@@ -333,7 +362,6 @@ function actualizarCarrito() {
   const totalPagar = Math.max(0, precioActualTotal - descuentoCupon - descuentoRegalo);
   const ahorroTotal = ahorroPrendas + descuentoCupon + descuentoRegalo;
 
-  // ACTUALIZAR FILAS DE TOTALES
   if (ahorroPrendas > 0) {
     $('#rowOriginal').style.display = 'flex'; 
     $('#cartOriginalTotal').textContent = formatMoney(precioOriginalTotal); 
@@ -385,8 +413,7 @@ async function procesarPago() {
 
   const btn = document.getElementById('btnProcesarPago'); btn.disabled = true; btn.textContent = 'Procesando...';
 
-  let precioActualTotal = 0; 
-  let puntosTotales = 0;
+  let precioActualTotal = 0; let puntosTotales = 0;
   
   carrito.forEach(i => { 
     precioActualTotal += i.precio * i.cantidad; 
@@ -431,7 +458,7 @@ function mostrarExito(orderId) {
   if(document.getElementById('couponInput')) document.getElementById('couponInput').value = ''; 
   actualizarCarrito(); 
   $('#cartOverlay').classList.remove('open');
-  localStorage.removeItem('shoproses_catalogo_v7'); 
+  localStorage.removeItem('shoproses_catalogo_v8'); 
   cargarProductos(); 
 }
 
