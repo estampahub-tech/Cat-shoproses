@@ -202,7 +202,7 @@
           if(data.pendientes && data.pendientes.length > 0) {
             document.getElementById('tablaPendientes').innerHTML = data.pendientes.map(p => `
               <tr>
-                <td><img src="${p.ImagenURL}" onerror="this.src='https://via.placeholder.com/40'"></td>
+                <td><img src="${p.ImagenURL.split(',')[0].trim()}" onerror="this.src='https://via.placeholder.com/40'"></td>
                 <td>${p.Nombre} (${p.Tallas})</td><td>${p.Proveedor}</td><td>$${p.Costo}</td><td>$${p.Precio_Actual}</td>
                 <td>
                   <button class="btn btn-sm btn-green" onclick="cambiarEstado(${p.fila}, 'Aprobado')">Aprobar</button>
